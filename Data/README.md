@@ -8,14 +8,14 @@ wget https://www.research-collection.ethz.ch/bitstream/handle/20.500.11850/67419
 ```
 
 
-One can simply run:
+Then, one can simply run:
 ```
-python create_patches.py  --tilenames example_TBD.txt
+python create_patches.py  --tilenames example.txt
                           --year 2019
                           --patch_size 25 25
                           --chunk_size 1
                           --path_shp S2_index/sentinel_2_index_shapefile.shp
-                          --path_gedi TBD.shp
+                          --path_gedi example_data/L4A_30NXM.shp
                           --path_s2 example_data/
                           --path_alos example_data/
                           --path_ch example_data/
