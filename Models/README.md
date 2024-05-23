@@ -37,3 +37,12 @@ Here is a breakdown of the files and their content:
 ### Launch training
 
 To launch the training of all of the models and all of their ablation studies, run `python run_jobs.py`. Otherwise, launch the appropriate scripts individually via, for example, `sbatch unet_15/train_all.sh`.
+
+### Pre-trained weights
+
+To download the weigths of the trained models, launch the following command:
+```
+wget https://www.research-collection.ethz.ch/bitstream/handle/20.500.11850/674193/weights.tar.gz
+```
+This will download a compressed tarball, which you can uncompress via `tar -xzvf weights.tar.gz`.
+
