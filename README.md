@@ -9,7 +9,7 @@ This repository contains the code used to create the results presented in the ep
 3. [Patches creation](https://github.com/ghjuliasialelli/AGBD#Patches-creation)
 
 ## Downloading the data
-The dataset is openly accessible on [HuggingFace](https://huggingface.co/datasets/prs-eth/AGBD), where it is stored in a streamable ML-ready format. However, the patch size is fixed (15x15). Users who want to experiment with a different patch size can download the data as described, and use the provided data loader. Note that the data is 300GB. 
+The dataset is openly accessible on [HuggingFace](https://huggingface.co/datasets/prs-eth/AGBD), where it is stored in a streamable ML-ready format. Should you want to reproduce our experiments with the data format we used can download the data as described, and use the provided data loader. Note that the data is ~300GB.
 
 You can either download: the tabular data, that only contains data for the central pixel (this is equivalent to using a patch size of 1x1), in `.csv` format; or the `.h5` data which contains the 25x25 patches. You can download data for the year 2019 and/or the year 2020. 
 
