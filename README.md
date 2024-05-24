@@ -22,7 +22,7 @@ bash Models/download.sh
 Should you wish to reproduce our results, we provide in the [Models section](https://github.com/ghjuliasialelli/AGBD/tree/main/Models) of this repository the code we used to train our benchmark models. You can find further instruction there on how to do it.
 
 ## Patches creation
-We provide an example for the patches creation procedure, in the [Data section](https://github.com/ghjuliasialelli/AGBD/tree/main/Data) of this repository. Further instructions can be found there.
+We provide an example for the patches creation procedure, in the [Patches section](https://github.com/ghjuliasialelli/AGBD/tree/main/Patches) of this repository. Further instructions can be found there.
 
 ## License
 
