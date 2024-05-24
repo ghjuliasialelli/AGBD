@@ -7,3 +7,4 @@ lightgbm
 h5py
 pandas
 tqdm
+lightning
