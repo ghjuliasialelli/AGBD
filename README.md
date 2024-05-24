@@ -10,22 +10,16 @@ This repository contains the code used to create the results presented in the ep
 2. [Models training](https://github.com/ghjuliasialelli/AGBD#Models-training)
 3. [Patches creation](https://github.com/ghjuliasialelli/AGBD#Patches-creation)
 
-## Downloading the data
-The dataset is openly accessible on [HuggingFace](https://huggingface.co/datasets/prs-eth/AGBD), where it is stored in a streamable ML-ready format. Should you want to reproduce our experiments with the data format we used can download the data as described, and use the provided data loader. Note that the data is ~300GB.
+## Accessing the dataset
+The dataset is openly accessible on [HuggingFace](https://huggingface.co/datasets/prs-eth/AGBD), where it is stored in a streamable ML-ready format. 
 
-To download the data, simply run: 
-```
-bash Models/download.sh
-```
-
-## Models training
-Should you wish to reproduce our results, we provide in the [Models section](https://github.com/ghjuliasialelli/AGBD/tree/main/Models) of this repository the code we used to train our benchmark models. You can find further instruction there on how to do it.
+## Data downloading and Models training
+Should you wish to reproduce our results, we provide in the [Models section](https://github.com/ghjuliasialelli/AGBD/tree/main/Models) of this repository the code we used to train our benchmark models. Should you want to reproduce our experiments with the data format we used can download the data as described, and use the provided data loader. Note that the data is ~300GB. You can find further instruction on how to do it in the dedicated folder.
 
 ## Patches creation
 We provide an example for the patches creation procedure, in the [Patches section](https://github.com/ghjuliasialelli/AGBD/tree/main/Patches) of this repository. Further instructions can be found there.
 
 ## License
-
 
 This work is licensed under a
 [Creative Commons Attribution-NonCommercial 4.0 International License][cc-by-nc].
