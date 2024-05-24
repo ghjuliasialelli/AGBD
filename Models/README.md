@@ -18,6 +18,7 @@ Here is a breakdown of the files and their content:
 | [models.py](models.py) | Defines the UNet and FCN models. |
 | [nico_net.py](nico_net.py) | Defines the model implemented by Lang et al. |
 | [parser.py](parser.py) | Defines the parser for most of the files. |
+| [requirements.txt](requirements.txt) | The packages to install for the environment. |
 | [rf.py](rf.py) | Defines the Gradient Boosting Decision Tree model. |
 | [run_jobs.py](run_jobs.py) | Launches all bash scripts in all subfolders. |
 | [table.py](table.py) | Generates the tabular dataset for GBDT, and the corresponding Data Loader. |
