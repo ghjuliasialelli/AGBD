@@ -28,6 +28,12 @@ Here is a breakdown of the files and their content:
 | [wrapper.py](wrapper.py) | Wrapper for the training procedure. |
 
 
+### Downloading the data
+You can simply run the following command, to download the data into a newly created `Data/` folder.
+```
+bash download.sh
+```
+
 ### Launch training
 
 To launch the training of all of the models and all of their ablation studies, run `python run_jobs.py`. Otherwise, launch the appropriate scripts individually via, for example, `sbatch unet_15/train_all.sh`.
