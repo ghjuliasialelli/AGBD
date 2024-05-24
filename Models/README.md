@@ -9,6 +9,7 @@ Here is a breakdown of the files and their content:
 |----------|----------|
 | [scripts](scripts) | Bash scripts for training the models. |
 | [dataset.py](dataset.py) | Defines the Data Loader. |
+| [download.sh](download.sh) | Bash script to download the dataset. |
 | [eval.py](eval.py) | Implements the evaluation of the model(s). |
 | [eval.sh](eval.sh) | Launches the evaluation of the model(s). |
 | [inference_helper.py](inference_helper.py) | Helper functions for inference. |
