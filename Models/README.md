@@ -7,12 +7,7 @@ Here is a breakdown of the files and their content:
 
 | Filename | What it does |
 |----------|----------|
-| [fcn_15](fcn_15) | Bash scripts* for training the FCN model on (15x15) patches. |
-| [fcn_25](fcn_25) | Bash scripts* for training the FCN model on (25x25) patches. |
-| [nico_15](nico_15) | Bash scripts* for training the Nico et al. model on (15x15) patches. |
-| [nico_25](nico_25) | Bash scripts* for training the Nico et al. model on (25x25) patches. |
-| [unet_15](unet_15) | Bash scripts* for training the UNet model on (15x15) patches. |
-| [unet_25](unet_25) | Bash scripts* for training the UNet model on (25x25) patches. |
+| [scripts](scripts) | Bash scripts for training the models. |
 | [dataset.py](dataset.py) | Defines the Data Loader. |
 | [eval.py](eval.py) | Implements the evaluation of the model(s). |
 | [eval.sh](eval.sh) | Launches the evaluation of the model(s). |
@@ -29,9 +24,6 @@ Here is a breakdown of the files and their content:
 | [train.py](train.py) | Defines the training procedure. |
 | [train.sh](train.sh) | Launches the training procedure. |
 | [wrapper.py](wrapper.py) | Wrapper for the training procedure. |
-
-
-*Note: there is a `.sh` file per ablation study.
 
 
 ### Launch training
