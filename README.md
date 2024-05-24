@@ -13,15 +13,10 @@ This repository contains the code used to create the results presented in the ep
 ## Downloading the data
 The dataset is openly accessible on [HuggingFace](https://huggingface.co/datasets/prs-eth/AGBD), where it is stored in a streamable ML-ready format. Should you want to reproduce our experiments with the data format we used can download the data as described, and use the provided data loader. Note that the data is ~300GB.
 
-You can either download: the tabular data, that only contains data for the central pixel (this is equivalent to using a patch size of 1x1), in `.csv` format; or the `.h5` data which contains the 25x25 patches. You can download data for the year 2019 and/or the year 2020. 
-
-To download the files with extension `<ext>` (`h5` or `csv`) for the year `<year>` (`2019` or `2020`), run: 
+To download the data, simply run: 
 ```
-wget https://www.research-collection.ethz.ch/bitstream/handle/20.500.11850/674193/<year>_<ext>.tar.gz
+bash Models/download.sh
 ```
-
-This will download a compressed tarball, which you can uncompress via `tar -xzvf <year>_<ext>.tar.gz`. 
-
 
 ## Models training
 Should you wish to reproduce our results, we provide in the [Models section](https://github.com/ghjuliasialelli/AGBD/tree/main/Models) of this repository the code we used to train our benchmark models. You can find further instruction there on how to do it.
