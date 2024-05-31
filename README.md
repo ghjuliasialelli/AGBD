@@ -3,12 +3,12 @@ Authors: Ghjulia Sialelli ([gsialelli@ethz.ch](mailto:gsialelli@ethz.ch)), Torbe
 
 [![CC BY-NC 4.0][cc-by-nc-shield]][cc-by-nc]
 
-This repository contains the code used to create the results presented in the eponymous paper. We curated a dataset from various remote-sensing data sources (Sentinel-2 L2A, ALOS-2 PALSAR-2 yearly mocaics, JAXA Digital Elevation Model, Copernicus Land Cover, Lang et al.'s Canopy Height Map) and GEDI L4A Above-Ground Biomass (AGB) data. We developed benchmark models for the task of estimating AGB.
+This repository contains the code used to create the results presented in the eponymous paper. We curated a dataset from various remote-sensing data sources ([Sentinel-2 L2A](https://sentinels.copernicus.eu/web/sentinel/sentinel-data-access/sentinel-products/sentinel-2-data-products/collection-1-level-2a), ALOS-2 PALSAR-2 [yearly mocaics](https://www.eorc.jaxa.jp/ALOS/en/dataset/fnf_e.htm), JAXA [Digital Elevation Model](https://www.eorc.jaxa.jp/ALOS/en/dataset/aw3d30/aw3d30_e.htm), Copernicus [Land Cover](https://land.copernicus.eu/en/products/global-dynamic-land-cover/copernicus-global-land-service-land-cover-100m-collection-3-epoch-2019-globe), Lang et al. [Canopy Height Map](https://langnico.github.io/globalcanopyheight/)) and GEDI [L4A](https://daac.ornl.gov/GEDI/guides/GEDI_L4A_AGB_Density_V2_1.html) Above-Ground Biomass (AGB) data. We developed benchmark models for the task of estimating Above-Ground Biomass (AGB).
 
 ## Accessing the dataset 🤗
 The dataset is openly accessible on [HuggingFace](https://huggingface.co/datasets/prs-eth/AGBD), where it is stored in a streamable ML-ready format. You can use it as follows:
 ```
-pip install datasets
+#!pip install datasets
 from datasets import load_dataset
 dataset = load_dataset("prs-eth/AGBD", streaming=True)["train"] # or test, or val
 ```
