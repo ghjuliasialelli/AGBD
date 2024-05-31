@@ -33,6 +33,7 @@ You can simply run the following command, to download the data into a newly crea
 ```
 bash download.sh
 ```
+This will download the raw `.h5` files (for training the FCN/UNet/Lang et al. models) and `.csv` files (for training the GBDT), along with two other files: `biomes_splits_to_name.pkl` which is a dictionary listing the Sentinel-2 tiles considered for each split (train/test/val), and `statistics_subset_2019-2020-v4.pkl` which holds the normalization values for the dataloader.
 
 ### Launch training
 
