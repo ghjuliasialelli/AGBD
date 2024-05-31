@@ -5,8 +5,13 @@ Authors: Ghjulia Sialelli ([gsialelli@ethz.ch](mailto:gsialelli@ethz.ch)), Torbe
 
 This repository contains the code used to create the results presented in the eponymous paper. We curated a dataset from various remote-sensing data sources (Sentinel-2 L2A, ALOS-2 PALSAR-2 yearly mocaics, JAXA Digital Elevation Model, Copernicus Land Cover, Lang et al.'s Canopy Height Map) and GEDI L4A Above-Ground Biomass (AGB) data. We developed benchmark models for the task of estimating AGB.
 
-## Accessing the dataset
-The dataset is openly accessible on [HuggingFace](https://huggingface.co/datasets/prs-eth/AGBD), where it is stored in a streamable ML-ready format. 
+## Accessing the dataset 🤗
+The dataset is openly accessible on [HuggingFace](https://huggingface.co/datasets/prs-eth/AGBD), where it is stored in a streamable ML-ready format. You can use it as follows:
+```
+pip install datasets
+from datasets import load_dataset
+dataset = load_dataset("prs-eth/AGBD", streaming=True)["train"] # or test, or val
+```
 
 ## Data downloading and Models training
 Should you wish to reproduce our results, we provide in the [Models section](https://github.com/ghjuliasialelli/AGBD/tree/main/Models) of this repository the code we used to train our benchmark models. Should you want to reproduce our experiments with the data format we used, you can download the data and use the provided data loader. You can find further instruction on how to do it in the dedicated folder. Note that the data is ~300GB.
