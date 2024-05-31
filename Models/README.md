@@ -51,7 +51,7 @@ To run inference on an example tile, you first need to download some example dat
 ```
 wget https://www.research-collection.ethz.ch/bitstream/handle/20.500.11850/674193/example_data
 ```
-This includes a handful of Sentinel-2 L2A products, the ALOS-2 PALSAR-2 yearly mosaic for 2020, the JAXA Digital Elevation Model, the Copernicus Land Cover, and the yearly Canopy Height Map for 2020. We take for this example, the Sentinel-2 tile 30NXM, located in Ghana. (Note that this is the same example data as is the [Patches section](https://github.com/ghjuliasialelli/AGBD/tree/main/Patches), so if you've already downloaded it, there is no need to download it again.)
+This includes a handful of Sentinel-2 L2A products, the ALOS-2 PALSAR-2 yearly mosaic for 2020, the JAXA Digital Elevation Model, the Copernicus Land Cover, and the yearly Canopy Height Map for 2020. We take for this example, the Sentinel-2 tile 30NXM, located in Ghana. <em>Note: this is the same example data as is the [Patches section](https://github.com/ghjuliasialelli/AGBD/tree/main/Patches), so if you've already downloaded it, there is no need to download it again. </em>
 
 You should also download the following file, which is a mapping from Sentinel-2 tile name to the Sentinel-2 product we ran inference on. Should you want to run inference on any of the other three products provided, you can edit this file.
 ```
@@ -59,7 +59,6 @@ You should also download the following file, which is a mapping from Sentinel-2 
 wget https://www.research-collection.ethz.ch/bitstream/handle/20.500.11850/674193/predictions/mapping.pkl
 
 # To edit it
-python
 import pickle
 with open('mapping.pkl','rb') as f: mapping = pickle.load(f)
 mapping['30NXM'] = 'the_name_of_the_other_product' # without the .zip or .SAFE extension
