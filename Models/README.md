@@ -1,4 +1,4 @@
-## Models training
+# Models training
 
 This folder contains everything needed for the training and/or testing of our models. Note that all models were trained on a cluster with Slurm Workload Manager, however, the bash scripts can also be run locally.
 
@@ -28,25 +28,25 @@ Here is a breakdown of the files and their content:
 | [wrapper.py](wrapper.py) | Wrapper for the training procedure. |
 
 
-### Downloading the data
+## Downloading the data
 You can simply run the following command, to download the data into a newly created `Data/` folder.
 ```
 bash download.sh
 ```
 This will download the raw `.h5` files (for training the FCN/UNet/Lang et al. models) and `.csv` files (for training the GBDT), along with two other files: `biomes_splits_to_name.pkl` which is a dictionary listing the Sentinel-2 tiles considered for each split (train/test/val), and `statistics_subset_2019-2020-v4.pkl` which holds the normalization values for the dataloader.
 
-### Launch training
+## Launch training
 
 To launch the training of all of the models and all of their ablation studies, run `python run_jobs.py`. Otherwise, launch the appropriate scripts individually via, for example, `sbatch unet_15/train_all.sh`.
 
-### Pre-trained weights
+## Pre-trained weights
 
 To download the weigths of the best model for each architecture, launch the following command:
 ```
 wget https://www.research-collection.ethz.ch/bitstream/handle/20.500.11850/674193/pretrained_weights
 ```
 
-### Inference
+## Inference
 
 To run inference on an example tile, you first need to download some example data, as follows:
 ```
