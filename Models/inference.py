@@ -38,7 +38,7 @@ def inf_parser():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_path', type = str, required = True, help = 'Path to the dataset')
-    parser.add_argument('--models', type = str, nargs = '+', required = True, help = 'Model names')
+    parser.add_argument('--model', type = str, required = True, help = 'Model names')
     parser.add_argument('--arch', type = str, required = True, help = 'Architecture of the model')
     parser.add_argument('--saving_dir', type = str, help = 'Directory in which to save the plots.')
     parser.add_argument("--tile_name", required = True, type = str, help = 'Tile on which to run the prediction.')
@@ -47,7 +47,7 @@ def inf_parser():
     parser.add_argument("--overlap_size", nargs = 2, type = int, default = [100,100], help = 'Size (height,width) of the patches.')
     args = parser.parse_args()
 
-    return args, args.dataset_path, args.models, args.arch, args.saving_dir, args.tile_name, args.dw, args.patch_size, args.overlap_size
+    return args, args.dataset_path, args.model, args.arch, args.saving_dir, args.tile_name, args.dw, args.patch_size, args.overlap_size
 
 
 def load_input(paths, tile_name, norm_values, cfg, alos_order = ['HH', 'HV']):
@@ -147,7 +147,7 @@ def predict_patch(model, patch, device):
     return preds[0, 0, :, :]
 
 
-def predict_tile(img, size, model_names, models, patch_size, overlap_size, device):
+def predict_tile(img, size, model, patch_size, overlap_size, device):
 
     """
         Split 100km x 100km tile, ie. of shape (10 000, 10 000, num_features), into patches of size `patch_size`, with overlap by `overlap_size`.
@@ -194,9 +194,7 @@ def predict_tile(img, size, model_names, models, patch_size, overlap_size, devic
     
     
     # Place-holder for the put-together predictions
-    predictions = {}
-    for model_name in model_names :
-        predictions[model_name] = np.zeros((pred_height, pred_width))
+    predictions = np.zeros((pred_height, pred_width), dtype = np.float32)
 
     # Actual prediction ###########################################################################################
 
@@ -208,19 +206,16 @@ def predict_tile(img, size, model_names, models, patch_size, overlap_size, devic
         for j, j_p in zip(range(0, img_width - patch_width + 1, step_width), range(0, pred_width - pred_patch_width + 1, pred_step_width)) :
             off_w = 0 if j_p == 0 else overlap_width // (2 * dw_factor) # to limit border-effect
             patch = img[i : i + patch_height, j : j + patch_width, :]
-            for model_name, model in zip(model_names, models) :
-                predictions[model_name][i_p + off_h : i_p + pred_patch_height, j_p + off_w : j_p + pred_patch_width] = predict_patch(model, patch, device)[off_h : , off_w :]
+            predictions[i_p + off_h : i_p + pred_patch_height, j_p + off_w : j_p + pred_patch_width] = predict_patch(model, patch, device)[off_h : , off_w :]
         # Last column, if patches don't equally fit in the image
         if overload_width :
             patch = img[i : i + patch_height, - patch_width : , :]
-            for model_name, model in zip(model_names, models) :
-                predictions[model_name][i_p + off_h : i_p + pred_patch_height, - pred_patch_width + off_w : ] = predict_patch(model, patch, device)[off_h : , off_w :]
+            predictions[i_p + off_h : i_p + pred_patch_height, - pred_patch_width + off_w : ] = predict_patch(model, patch, device)[off_h : , off_w :]
     # Last row, if patches don't equally fit in the image
     if overload_height :
         for j, j_p in zip(range(0, img_width - patch_width + 1, step_width), range(0, pred_width - pred_patch_width + 1, pred_step_width)) :
             patch = img[ - patch_height : , j : j + patch_width, :]
-            for model_name, model in zip(model_names, models) :
-                predictions[model_name][- pred_patch_height + off_h : , j_p + off_w : j_p + pred_patch_width] = predict_patch(model, patch, device)[off_h : , off_w :]
+            predictions[- pred_patch_height + off_h : , j_p + off_w : j_p + pred_patch_width] = predict_patch(model, patch, device)[off_h : , off_w :]
     
     # Divide by the number of times a value was in an overlap to get the mean
     print('done!')
@@ -288,7 +283,7 @@ class Inference:
 def run_inference():
     
     # Get the command line arguments and set the global variables
-    args, dataset_path, models, arch, saving_dir, tile_name, dw, patch_size, overlap_size = inf_parser()
+    args, dataset_path, model, arch, saving_dir, tile_name, dw, patch_size, overlap_size = inf_parser()
 
     # Settings
     set_float32_matmul_precision('high')
@@ -313,10 +308,8 @@ def run_inference():
     dataset_path['saving_dir'] = saving_dir
 
     # We get the config for one of the models
-    api = wandb.Api()
-    wandb_mapping = get_mapping(api, arch)
-    wandb_name = wandb_mapping[models[0]]
-    cfg = api.run(f'gs-tp-biomass/{arch}_old/{wandb_name}').config
+    with open(join(dataset_path['ckpt'], arch, f'{model}_cfg.pkl'), 'rb') as f:
+        cfg = pickle.load(f)
     for key, value in cfg.items(): setattr(args, key, value)
 
     # Load the input
@@ -326,54 +319,30 @@ def run_inference():
     pred_mask = rescale(mask, size / 15)
 
     # Load the models
-    inference_objects = [Inference(arch = arch, model_name = model_name, paths = dataset_path, tile_name = tile_name, args = args, device = device) for model_name in models]
-    inf_models = [inference_object.model for inference_object in inference_objects]
+    inference_object = Inference(arch = arch, model_name = model, paths = dataset_path, tile_name = tile_name, args = args, device = device)
+    inf_model = inference_object.model
 
     # Get the predictions
-    ensemble_predictions = predict_tile(img, size, models, inf_models, patch_size, overlap_size, device)
-
-    # Ensemble
-    preds_variables = []
-    for mname in models:
-
-        print(f'Ensembling predictions for {mname}...')
-        
-        # Get the predictions for this model
-        predictions = ensemble_predictions[mname]
-
-        # We ignore the predictions that correspond to where the input was masked
-        predictions[pred_mask] = np.nan
-
-        preds_variables.append(predictions)
-
-    # Aggregate the predictions 
-    preds_variables = np.array(preds_variables, dtype = np.float32) # (n_models, n, m)
-    avg_preds_variables = np.nanmean(preds_variables, axis = 0) # (n, m)
-    avg_preds_std = np.nanstd(preds_variables, axis = 0) # (n, m)
+    predictions = predict_tile(img, size, inf_model, patch_size, overlap_size, device)
+    predictions[pred_mask] = np.nan
 
     # Cast negative AGB values to 0, and all values to uint16
-    avg_preds_variables[avg_preds_variables < 0] = 0
-    avg_preds_variables[avg_preds_variables > 65535] = 65535
-    avg_preds_variables[np.isinf(avg_preds_variables)] = 65535
-    avg_preds_variables[np.isnan(avg_preds_variables)] = 65535
-    avg_preds_variables = avg_preds_variables.astype(np.uint16)
+    predictions[predictions < 0] = 0
+    predictions[predictions > 65535] = 65535
+    predictions[np.isinf(predictions)] = 65535
+    predictions[np.isnan(predictions)] = 65535
+    predictions = predictions.astype(np.uint16)
 
     # Get the metadata from the original Sentinel 2 tile
     print(f'Saving predictions to {os.path.join(dataset_path["saving_dir"], f"{tile_name}_<agb/std>.tif")}')
     
     # Save the AGB predictions to a GeoTIFF, with dtype uint16
     meta.update(driver = 'GTiff', dtype = np.uint16, count = 1, compress = 'lzw', nodata = 65535)
-    output_path = join(dataset_path['saving_dir'], arch, models[0].split('-')[0])
+    output_path = join(dataset_path['saving_dir'], arch, model.split('-')[0])
     if not os.path.exists(output_path): os.makedirs(output_path)
     
     with rs.open(os.path.join(output_path, f'{tile_name}_agb.tif'), 'w', **meta) as f:
-        f.write(avg_preds_variables, 1)
-
-    # Save the uncertainties estimation to another GeoTIFF, with dtype float32
-    meta.update(dtype = np.float32, nodata = np.nan)
-    with rs.open(os.path.join(output_path, f'{tile_name}_std.tif'), 'w', **meta) as f:
-        f.write(avg_preds_std, 1)
-
+        f.write(predictions, 1)
 
 if __name__ == '__main__': 
     run_inference()

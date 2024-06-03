@@ -12,7 +12,7 @@
 ##################################################################################################################
 # TO EDIT ########################################################################################################
 arch="fcn"
-models=('58217185-1' '58217185-2' '58217185-3' '58217185-4' '58217185-5')
+model='58217185-1'
 
 ################################################################################################################################
 
@@ -76,13 +76,13 @@ if [[ "$first_part" == "cluster" ]]; then
     rsync -aq /cluster/work/igp_psr/gsialelli/EcosystemAnalysis/Models/Nico/global-canopy-height-model/${tile}/2020/preds_inv_var_mean/${tile}_pred.tif ${TMPDIR}
     rsync -aq /cluster/work/igp_psr/gsialelli/EcosystemAnalysis/Models/Nico/global-canopy-height-model/${tile}/2020/preds_inv_var_mean/${tile}_std.tif ${TMPDIR}
 
-    python3 inference.py --models ${models[@]} --arch ${arch} --dataset_path ${TMPDIR} \
+    python3 inference.py --model ${model} --arch ${arch} --dataset_path ${TMPDIR} \
             --saving_dir /cluster/work/igp_psr/gsialelli/EcosystemAnalysis/Models/Baseline/predictions \
             --tile_name $tile
 
 else
 
-    python3 inference.py --models ${models[@]} --arch ${arch} --dataset_path local \
+    python3 inference.py --model ${model} --arch ${arch} --dataset_path local \
             --saving_dir /scratch2/gsialelli/EcosystemAnalysis/Models/Baseline/predictions \
             --tile_name $tile
 
