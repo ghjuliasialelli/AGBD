@@ -4,24 +4,24 @@ This folder contains the code and data to showcase how the patches were obtained
 
 First, of all run the following command to download the example data. This includes a handful of Sentinel-2 L2A products, the ALOS-2 PALSAR-2 yearly mosaic for 2020, the JAXA Digital Elevation Model, the Copernicus Land Cover, and the yearly Canopy Height Map for 2020. We take for this example, the Sentinel-2 tile 30NXM, located in Ghana.
 ```
-wget https://www.research-collection.ethz.ch/bitstream/handle/20.500.11850/674193/example_data
+wget "https://libdrive.ethz.ch/index.php/apps/files/ajax/download.php?dir=%2F674193&files=example_data"
 ```
 
 
 Then, one can simply run:
 ```
-python create_patches.py  --tilenames example.txt
-                          --year 2019
-                          --patch_size 25 25
-                          --chunk_size 1
-                          --path_shp S2_index/sentinel_2_index_shapefile.shp
-                          --path_gedi example_data/L4A_30NXM.shp
-                          --path_s2 example_data/
-                          --path_alos example_data/
-                          --path_ch example_data/
-                          --path_lc example_data/
-                          --output_path ./
-                          --output_fname example_patches
+python create_patches.py  --tilenames example.txt \
+                          --year 2019 \
+                          --patch_size 25 25 \
+                          --chunk_size 1 \
+                          --path_shp S2_index/sentinel_2_index_shapefile.shp \
+                          --path_gedi example_data/L4A_30NXM.shp \
+                          --path_s2 example_data/ \
+                          --path_alos example_data/ \
+                          --path_ch example_data/ \
+                          --path_lc example_data/ \
+                          --output_path ./ \
+                          --output_fname example_patches \
                           --ALOS --CH --LC --DEM --i 0 --N 1
 ```
 

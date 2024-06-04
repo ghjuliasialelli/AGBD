@@ -1,6 +1,6 @@
 """
 
-TODO
+This script contains the helper functions used in the inference process.
 
 """
 
@@ -173,10 +173,11 @@ def get_tile(data, s2_transform, upsampling_shape, data_source, data_attrs) :
     the Sentinel-2 tile, resamples it to 10m resolution when necessary, and returns it.
 
     Args:
-    - data: 
+    - data: dict, with the attributes as keys and the corresponding 2d arrays as values.
     - s2_transform: affine.Affine, transform of the Sentinel-2 L2A product.
     - upsampling_shape: tuple of ints, shape of the Sentinel-2 L2A product, at 10m resolution.
-    - footprint: geopandas Series, GEDI footprint.
+    - data_source: string, data source.
+    - data_attrs: dict, with the attributes as keys and the corresponding data types as values.
 
     Returns:
     - res: dict, with the attributes as keys and the corresponding 2d arrays as values.
@@ -260,26 +261,16 @@ def radiometric_offset_values(path_s2, product, offset) :
             assert boa_add_offset_value == 1000, f'BOA_ADD_OFFSET_VALUE is {boa_add_offset_value}, should be 1000 | band {actual_band}'
 
 
-def get_mapping(api, arch) :
-    """
-    {'58742596-1': 'kpq024cl', '58742596-2': 'l7gnvpae'}
-    """
-    runs = api.runs(f"gs-tp-biomass/{arch}_old")
-    run_mapping = {}
-    for run in runs: run_mapping[run.name] = run.path[-1]
-    return run_mapping
-
-
 def encode_tile(tile_reader, transformer) :
     """ 
-        Content: from a DatasetReader for a tile, get the latitude and longitude per pixel in EPSG:4326, and encode
-        those geographical coordinates to cyclic geographical coordinates.
+    This function encodes the lat/lon of the tile in the [0,1] range.
 
-        input:
-        - `tile_reader` (rasterio DatasetReader) : tile to encode;
-        - `transformer` (pyproj.Transformer) : transformer from one CRS to another one.
+    Args:
+    - tile_reader: rasterio dataset, tile reader.
+    - transformer: pyproj.Transformer, transformer.
 
-        output (3 x np.ndarray) : encoded latitude, longitude_1, and longitude_2
+    Returns:
+    - lat_cos, lat_sin, lon_cos, lon_sin: 2d arrays, lat/lon in the [0,1] range.
     """
 
     width, height = tile_reader.width, tile_reader.height
@@ -331,6 +322,7 @@ def load_LC_data(path_lc, tile_name) :
         LC['transform'] = src.transform
     return LC
 
+
 def load_DEM_data(path_dem, tile_name) :
     """
     This function loads the DEM data for the current tile.
@@ -348,6 +340,7 @@ def load_DEM_data(path_dem, tile_name) :
         DEM['dem'] = src.read(1)
         DEM['transform'] = src.transform
     return DEM
+
 
 def load_CH_data(path_ch, tile_name, year) :
     """
@@ -373,17 +366,15 @@ def load_CH_data(path_ch, tile_name, year) :
     
     return CH
 
+
 def load_ALOS_data(tile_name, path_alos, year) :
     """
-    For a given Sentinel-2 `tile_name`, and the corresponding grouping of the matching Sentinel-2 products and GEDI footprints,
-    this function loads the pre-processed ALOS PALSAR mosaics for the tile, and the years spanned by the products. We return a
-    dictionary with the years spanned as keys, and the corresponding ALOS PALSAR data (in the format of a dictionary with keys
-    'transform', 'HH', and 'HV') as values.
+    This function loads the ALOS PALSAR data for the current tile and year.
 
     Args:
     - tile_name: string, name of the Sentinel-2 tile.
-    - groups: pandas groupby object, GEDI footprints for the tile, grouped by S2 product.
     - path_alos: string, path to the ALOS PALSAR data directory.
+    - year: int, year of the Sentinel-2 product.
 
     Returns:
     - alos_tiles: dictionary, with the years spanned as keys, and the corresponding ALOS PALSAR data as values.
@@ -406,7 +397,7 @@ def load_ALOS_data(tile_name, path_alos, year) :
 def process_S2_tile(product, path_s2) :
     """
     This function iterates over the bands of the Sentinel-2 L2A product at hand; reprojects them to
-    EPSG 4326; upsamples them to 10m resolution (when needed) using cubic interpolation (nearest
+    EPSG 4326; upsamples them to 10m resolution (when needed) using bi-linear interpolation (nearest
     neighbor for the scene classification mask); and returns them.
     
     Args:
@@ -414,7 +405,14 @@ def process_S2_tile(product, path_s2) :
     - path_s2: string, path to the Sentinel-2 data directory.
 
     Returns:
-    - processed_bands: dictionary, with the band names as keys, and the corresponding 2d arrays as values.
+    - _transform: affine.Affine, transform of the 10m resolution B02 band.
+    - upsampling_shape: tuple of ints, shape of the 10m resolution bands.
+    - processed_bands: dict, with the bands as keys and the corresponding 2d arrays as values.
+    - crs: rasterio.crs.CRS, crs of the bands.
+    - bounds: tuple of floats, bounds of the bands.
+    - boa_offset: int, 1 if the product was acquired after January 25th, 2022; 0 otherwise.
+    - lat_cos, lat_sin, lon_cos, lon_sin: 2d arrays, lat/lon in the [0,1] range.
+    - meta: dict, metadata of the bands.
     """
 
     # Get the path to the IMG_DATA/ folder of the Sentinel-2 product
@@ -460,7 +458,7 @@ def process_S2_tile(product, path_s2) :
             
             # Upsample the band to a 10m resolution if necessary
             else :
-                # Order 0 indicates nearest interpolation, and order 3 indicates bi-cubic interpolation
+                # Order 0 indicates nearest interpolation, and order 1 indicates bi-linear interpolation
                 if band == 'SCL' :
                     band_data = upsampling_with_nans(band_data, upsampling_shape, NODATAVALS['S2'], 0).astype(S2_attrs['bands'][band])
                 else:

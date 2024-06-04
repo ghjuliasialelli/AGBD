@@ -1,11 +1,11 @@
 """
 
-TODO
+This script defines the training loop for the different models.
 
 """
 
 ###################################################################################################
-# IMPORTS 
+# Imports
 
 import os
 from rf import RandomForest
@@ -52,7 +52,7 @@ def main():
     args, _ = setup_parser().parse_known_args()
     if args.dataset_path == 'local' : 
         dataset_path = local_dataset_paths
-        debug = True
+        debug = False
     else: 
         dataset_path = {k:args.dataset_path for k in local_dataset_paths.keys()}
         debug = False
@@ -86,11 +86,11 @@ def main():
     model_name = args.model_name.split('/')[-1]
     if model_name == 'local' :
         # if training locally, give a random wandb name
-        wandb_logger = WandbLogger(entity = 'gs-tp-biomass', project = args.arch, log_model = False)
+        wandb_logger = WandbLogger(project = args.arch, log_model = False)
         model_name = wandb_logger.experiment.name
     else:
         # if on the cluster, model_name is the JOB ID and MODEL ID in the ensemble
-        wandb_logger = WandbLogger(entity = 'gs-tp-biomass', project = args.arch, name = model_name, log_model = False)
+        wandb_logger = WandbLogger(project = args.arch, name = model_name, log_model = False)
 
     # Define the trainer
     trainer = Trainer(max_epochs = args.n_epochs, devices = 1, accelerator = accelerator, logger = wandb_logger, num_sanity_val_steps = 1, val_check_interval = 0.5,

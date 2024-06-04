@@ -7,42 +7,55 @@
 #SBATCH --error=/cluster/scratch/gsialelli/inference/%A_%a.out
 #SBATCH --mem-per-cpu=8G
 #SBATCH --gpus=1
-#SBATCH --array=1-20
+#SBATCH --array=1-1
 
 ##################################################################################################################
-# TO EDIT ########################################################################################################
+# Define the model to run inference with
 arch="fcn"
 model='58217185-1'
 
+# For your information, here are the models for which we provide the weigths:
+# Format `arch` `model`
+# nico 60688111-1
+# unet 59641265-1
+# fcn 60310360-1
+# rf morning-deluge-23-1
+
 ################################################################################################################################
+# Define the tiles to run inference on
 
 echo "Q: Did you remember to set the # of job arrays?"
+# Hint: you have to set it equal to the number of tiles listed in the LIST_TILES_FILE
+
 echo "Q: And the file from which to read the products?"
-echo
+# Hint: that's the LIST_TILES_FILE variable
 
 # Set the file from which to read the products
-LIST_TILES_FILE='gsialelli/BiomassDatasetCreation/Data/download_Sentinel/Sentinel_Clem_California_Cuba_Paraguay_UnitedRepublicofTanzania_Ghana_Austria_Greece_Nepal_ShaanxiProvince_NewZealand_FrenchGuiana.txt'
+LIST_TILES_FILE='inference.txt'
 echo "Will read products from file ${LIST_TILES_FILE}"
 
 ################################################################################################################################
 # Establish the paths based on whether we're on the cluster or not
+# (Adapt the paths to your own needs)
 
 current_directory=$(pwd)
 echo "Current Directory: $current_directory"
 
 first_part=$(echo "$current_directory" | cut -d'/' -f2)
 
+# The inference is designed to run on a cluster
 if [[ "$first_part" == "cluster" ]]; then
     echo "Running on a cluster"
     LIST_PRODS_FILE="/cluster/work/igp_psr/${LIST_TILES_FILE}"
-    rsync -aq /cluster/work/igp_psr/gsialelli/EcosystemAnalysis/Models/Baseline/${arch}/ ${TMPDIR}
-    rsync -aq /cluster/work/igp_psr/gsialelli/Data/patches/statistics_subset_2019-2020-v4.pkl ${TMPDIR}
+    saving_dir="/cluster/work/igp_psr/gsialelli/EcosystemAnalysis/Models/Baseline/predictions"
+# When running locally, only the first product from the list will be processed
 elif [[ "$first_part" == "scratch2" ]]; then
     echo "Running on a local machine"
     LIST_PRODS_FILE="/scratch2/${LIST_TILES_FILE}"
     SLURM_ARRAY_TASK_MIN=1
-    SLURM_ARRAY_TASK_MAX=479
+    SLURM_ARRAY_TASK_MAX=1
     SLURM_ARRAY_TASK_ID=1
+    saving_dir="/scratch2/gsialelli/EcosystemAnalysis/Models/Baseline/predictions"
 else
     echo "Environment unknown"
 fi
@@ -73,18 +86,13 @@ echo "Launching predictions for tile: " ${tile}
 
 if [[ "$first_part" == "cluster" ]]; then
 
-    rsync -aq /cluster/work/igp_psr/gsialelli/EcosystemAnalysis/Models/Nico/global-canopy-height-model/${tile}/2020/preds_inv_var_mean/${tile}_pred.tif ${TMPDIR}
-    rsync -aq /cluster/work/igp_psr/gsialelli/EcosystemAnalysis/Models/Nico/global-canopy-height-model/${tile}/2020/preds_inv_var_mean/${tile}_std.tif ${TMPDIR}
-
-    python3 inference.py --model ${model} --arch ${arch} --dataset_path ${TMPDIR} \
-            --saving_dir /cluster/work/igp_psr/gsialelli/EcosystemAnalysis/Models/Baseline/predictions \
-            --tile_name $tile
+    python3 inference.py --models ${models[@]} --arch ${arch} --dataset_path ${TMPDIR} \
+            --saving_dir ${saving_dir} --tile_name $tile
 
 else
 
-    python3 inference.py --model ${model} --arch ${arch} --dataset_path local \
-            --saving_dir /scratch2/gsialelli/EcosystemAnalysis/Models/Baseline/predictions \
-            --tile_name $tile
+    python3 inference.py --models ${models[@]} --arch ${arch} --dataset_path local \
+            --saving_dir ${saving_dir} --tile_name $tile
 
 fi
 

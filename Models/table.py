@@ -5,7 +5,7 @@ This script is used to extract the features and labels of the central pixels fro
 """
 
 ############################################################################################################################
-# IMPORTS
+# Imports
 
 from dataset import *
 import argparse

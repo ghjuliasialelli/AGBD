@@ -2,15 +2,15 @@
 
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
-#SBATCH --time=72:00:00
+#SBATCH --time=96:00:00
 #SBATCH --output=/cluster/work/igp_psr/gsialelli/EcosystemAnalysis/Models/Baseline/logs/training-%A_%a.txt
 #SBATCH --error=/cluster/work/igp_psr/gsialelli/EcosystemAnalysis/Models/Baseline/logs/training-%A_%a.txt
-#SBATCH --mem-per-cpu=2G
-#SBATCH --tmp=10G
+#SBATCH --mem-per-cpu=4G
+#SBATCH --tmp=260G
 #SBATCH --array=1-5
 #SBATCH --job-name=models
 #SBATCH --gpus=1
-#SBATCH --gres=gpumem:11245MB 
+#SBATCH --gres=gpumem:10245MB 
 
 ################################################################################################################################
 # Establish the paths based on whether we're on the cluster or not
@@ -23,21 +23,25 @@ if [ "$first_part" == "cluster" ]; then
     echo "Running on a cluster"
     
     # Move the .h5 files
-    rsync --include '*.h5' --exclude '*' -aq /cluster/work/igp_psr/gsialelli/Data/AGB/ ${TMPDIR}
+    rsync --include '*v4_*-20.h5' --exclude '*' -aq /cluster/work/igp_psr/gsialelli/Data/patches/ ${TMPDIR}
 
-    # Move the file(s) with the statistics
-    #rsync -aq /cluster/work/igp_psr/gsialelli/Data/AGB/statistics_subset.pkl ${TMPDIR}/normalization_values_subset.pkl
-    rsync -aq /cluster/work/igp_psr/gsialelli/Data/patches/statistics_subset_2019-v3.pkl ${TMPDIR}
-    rsync -aq /cluster/work/igp_psr/gsialelli/Data/patches/statistics_subset_2020-v3.pkl ${TMPDIR}
+    # Move the file with the statistics
+    #rsync -aq /cluster/work/igp_psr/gsialelli/Data/patches/statistics_subset_2019-v3.pkl ${TMPDIR}/normalization_values_subset.pkl
+
+		rsync -aq /cluster/work/igp_psr/gsialelli/Data/patches/statistics_subset_2019-2020-v4.pkl ${TMPDIR}
+    
 
     # Move the file with the splits
     rsync -aq /cluster/work/igp_psr/gsialelli/Data/AGB/biomes_splits_to_name.pkl ${TMPDIR}
+    
 
-elif [ "$first_part" == "scratch2" ]; then
+elif [ "$first_part" == "scratch" ]; then
     echo "Running on a local machine"
 else
     echo "Environment unknown"
 fi
+
+# Model parameters ###############################################################################################
 
 if [ "$first_part" == "cluster" ]
 then
@@ -48,24 +52,24 @@ else
     MODEL_IDX=0
 fi
 
-##################################################################################################################
-# To edit ########################################################################################################
-
-# Loss function
+##########
 loss_fn='MSE'
+ch="false"
+bands=(B01 B02 B03 B04 B05 B06 B07 B08 B8A B09 B11 B12)
+###########
 
-# Architecture, can be one of the following: 'fcn', 'unet', 'rf', 'nico'
+# model itself
+
 arch="fcn"
+channel_dims=(32 32 64 128 128 128)
 
-# Features to include
-ch="true"
-bands=(B01 B02 B03 B04 B05 B06 B07 B08 B8A B09 B11 B12) #(B02 B03 B04 B08) #(B01 B02 B03 B04 B05 B06 B07 B08 B8A B09 B11 B12)
-patch_size=(15 15) # (has to be 2k+1, 2k+1)
+# inputs
+patch_size=(25 25)
 latlon="true"
 s1="false"
-alos="true"
+alos="false"
 lc="true"
-dem="true"
+dem="false"
 gedi_dates="false"
 s2_dates="false"
 
@@ -75,21 +79,15 @@ years=(2019 2020)
 echo "Year: ${years[@]}"
 echo "Architecture: $arch"
 
-# Model parameters ###############################################################################################
-
-# FCN arguments
-channel_dims=(16 32 64 128 128 128)
-max_pool="false"
-
 # UNet arguments
 leaky_relu="false"
+max_pool="false"
 
-# Training arguments
-norm_strat='pct'
-n_epochs=100000
+# training
+n_epochs=10
 batch_size=256
 limit="false"
-reweighting='no'
+reweighting='no' #'no' or 'ifns'
 lr=0.001
 step_size=30
 gamma=0.1
@@ -99,12 +97,9 @@ chunk_size=1
 
 # Output path and model name #####################################################################################
 
-if [ "$first_part" == "cluster" ]
-then
-    model_path=/cluster/work/igp_psr/gsialelli/MT/Models/${arch}
-else
-    model_path=/scratch2/gsialelli/EcosystemAnalysis/Models/Baseline/weights
-fi
+model_path=/cluster/work/igp_psr/gsialelli/EcosystemAnalysis/Models/Baseline/${arch}
+
+
 
 num_bands=${#bands[@]}
 in_features=$((num_bands+2)) # + 2 because always using `lat_1` and `lat_2`
@@ -115,17 +110,18 @@ fi
 if [ "$ch" == "true" ]
 then 
     in_features=$((in_features+2)) # + 2 because `ch` and `ch_std`
-fi
+fi 
+
 if [ "$alos" == "true" ]
-then 
+then
     in_features=$((in_features+2)) # + 2 because hh and hv
 fi
 if [ "$lc" == "true" ]
-then 
+then
     in_features=$((in_features+3)) # + 3 because lc sin lc cos and lc prob
 fi
 if [ "$dem" == "true" ]
-then 
+then
     in_features=$((in_features+1))
 fi
 
@@ -138,7 +134,9 @@ else
     model_name=${model_path}/local
 fi
 
+
 num_outputs=1
+norm_strat='pct'
 
 # Launch training ################################################################################################
 
@@ -146,6 +144,7 @@ python3 train.py --model_path $model_path \
                 --model_name $model_name \
                 --dataset_path $dataset_path \
                 --augment "false" \
+                --norm "false" \
                 --arch $arch \
                 --model_idx $MODEL_IDX \
                 --loss_fn $loss_fn \

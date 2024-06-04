@@ -1,8 +1,7 @@
 """
 
-This script extracts patches of Sentinel-2 L2A data, Sentinel-1 L1C data, and GEDI data, for the purpose of training a neural network to
-predict biomass. 
-
+This script extracts patches centered around GEDI footprints, made of Sentinel-2 L2A bands, ALOS PALSAR-2 bands, Canopy Height,
+Land Cover, and DEM data. The patches are saved in a .h5 file. 
 
 Execution:
     python create_patches.py    --tilenames /path/to/tile_names.txt
@@ -27,7 +26,7 @@ Execution:
 """
 
 ############################################################################################################################
-# IMPORTS
+# Imports
 
 import h5py
 import glob
@@ -144,11 +143,10 @@ def setup_parser() :
     return args.tilenames, args.year, args.patch_size, args.chunk_size, args.path_shp, args.path_gedi, args.path_s2, args.path_alos, args.path_ch, args.path_lc, args.path_dem, args.output_path, args.output_fname, args.i, args.N, args.ALOS, args.CH, args.LC, args.DEM
 
 
-def list_s2_tiles(tilenames, grid_df, path_s2) :
+def list_s2_tiles(tilenames, grid_df) :
     """
-    This function performs two tasks: 1) return the list of Sentinel-2 tile names for which we want to extract patches (this
-    is done either by listing the files in the Sentinel-2 data directory, or by reading a .txt file if one is provided); and
-    2) return the geometries of those tiles, from the Sentinel-2 grid shapefile.
+    This function performs two tasks: 1) return the list of Sentinel-2 tile names for which we want to extract patches (by
+    reading the tiles from a .txt file); and 2) return the geometries of those tiles, from the Sentinel-2 grid shapefile.
 
     Args:
     - tilenames: string, path to a .txt file listing the Sentinel-2 tiles to consider.
@@ -159,15 +157,9 @@ def list_s2_tiles(tilenames, grid_df, path_s2) :
     - tile_geoms: list of shapely geometries, geometries of the Sentinel-2 tiles to consider.
     """
     
-    # Option 1 : list them from the folder of downloaded tiles
-    if tilenames is None: 
-        all_files = glob.glob(join(path_s2, f'*MSI*.zip'))
-        tile_names = [basename(f).strip('.zip') for f in all_files]
-    
-    # Option 2 : list them from the .txt file
-    else:
-        with open(tilenames) as f: 
-            tile_names = [tile_name.strip().strip('.zip') for tile_name in f.readlines()]
+    # List the tiles
+    with open(tilenames) as f: 
+        tile_names = [tile_name.strip().strip('.zip') for tile_name in f.readlines()]
     
     # Get the geometries from the Sentinel-2 grid shapefile
     tile_geoms = [grid_df[grid_df['Name'] == tile_name]['geometry'].values[0] for tile_name in tile_names]
@@ -177,13 +169,20 @@ def list_s2_tiles(tilenames, grid_df, path_s2) :
 
 def explode_pattern(pattern) :
     """
-    `pattern` (string) : the `date`, `orbit_number`, `granule_number`, `track_number`, `ppds_type` and `version_number`
-            of the input file; parsed as explained in daac.ornl.gov/GEDI/guides/GEDI_L4A_AGB_Density_V2_1.html
-    cf. process_h5_filename() in GEDI/h5_to_csv_to_shp.py
+    This function explodes the `pattern` attribute of the GEDI data into its constituent parts. The `pattern` attribute
+    is a string that contains the following information: `date`, `orbit_number`, `granule_number`, `track_number`, `ppds_type`,
+    and `version_number`. The `date` is in the format `YYYYDDDHHMMSS`, where `YYYY` is the year, `DDD` is the day of the year,
+    `HH` is the hour, `MM` is the minute, and `SS` is the second. For more information about what each of these attributes
+    represent, refer to: https://daac.ornl.gov/GEDI/guides/GEDI_L4A_AGB_Density_V2_1.html. 
 
-    The date (YYYYDDDHHMMSS) don't keep because we have date, don't need H/M/S
-    The orbit number don't keep because is in shot_number
+    Args:
+    - pattern: string, pattern attribute of the GEDI data.
 
+    Returns:
+    - granule_number: int, granule number.
+    - track_number: int, track number.
+    - ppds_type: int, ppds type.
+    - version_number: int, version number.
     """
     _, _, granule_number, track_number, ppds_type, version_number = pattern.split('_')
     track_number, version_number = track_number.lstrip('T'), version_number.lstrip('V')
@@ -296,9 +295,12 @@ def load_GEDI_data(path_gedi, tile_geom, tile_name, year) :
     Args:
     - path_gedi: string, path to the GEDI data directory.
     - tile_geom: shapely geometry, geometry of the Sentinel-2 tile (in the same CRS as the GEDI data, WGS84)
+    - tile_name: string, name of the Sentinel-2 tile.
+    - year: string, year of interest.
 
     Returns:
     - GEDI: geopandas dataframe, GEDI data.
+    - crs: rasterio.crs.CRS, CRS of the Sentinel-2 tile.
     """
 
     # Load the data contained in the bounding box of the tile
@@ -438,13 +440,15 @@ def get_sentinel2_patch(transform, processed_bands, footprint, patch_size, s2_pr
     (encoded with cos and sin); the tile name; and the product name.
 
     Args:
+    - transform: affine.Affine, transform of the Sentinel-2 L2A product.
     - processed_bands: dictionary, with the band names as keys, and the corresponding 2d arrays as values.
     - footprint: geopandas Series, GEDI footprint.
     - patch_size: tuple of ints, size of the patch to extract.
     - s2_prod: string, name of the Sentinel-2 L2A product.
+    - boa_offset: int, 1 if the product was acquired after January 25th, 2022; 0 otherwise.
 
     Returns:
-    - s2_footprint_data: dictionary, with 'bands' and 'metadata' as keys, and the corresponding data as values.
+    - patch_data: dictionary, with 'bands' and 'metadata' as keys, and the corresponding data as values.
             or None, if the patch is not good enough.
     """
 
@@ -608,10 +612,11 @@ def get_tile(data, s2_transform, upsampling_shape, data_source, data_attrs) :
     the Sentinel-2 tile, resamples it to 10m resolution when necessary, and returns it.
 
     Args:
-    - data: 
+    - data: dictionary, with the data.
     - s2_transform: affine.Affine, transform of the Sentinel-2 L2A product.
     - upsampling_shape: tuple of ints, shape of the Sentinel-2 L2A product, at 10m resolution.
-    - footprint: geopandas Series, GEDI footprint.
+    - data_source: string, data source.
+    - data_attrs: dictionary, with the data attributes as keys, and the corresponding data types as values.
 
     Returns:
     - res: dict, with the attributes as keys and the corresponding 2d arrays as values.
@@ -661,6 +666,8 @@ def get_patch(tile, footprint, transform, patch_size, data_source, data_attrs) :
     - footprint: geopandas Series, GEDI footprint.
     - transform: affine.Affine, transform of the tile.
     - patch_size: tuple of ints, size of the patch to extract.
+    - data_source: string, data source.
+    - data_attrs: dictionary, with the data attributes as keys, and the corresponding data types as values.
 
     Returns:
     - patch_data: dictionary, with 'bands' as key, and the corresponding 3d numpy array as value.
@@ -844,6 +851,7 @@ def match_s2_product(gedi_date, tile_name, path_s2) :
 
     Args:
     - gedi_date: string, date of the GEDI footprint (format YYYY-MM-DD).
+    - tile_name: string, name of the Sentinel-2 tile.
     - path_s2: string, path to the Sentinel-2 data directory.
 
     Returns:
@@ -914,6 +922,7 @@ def setup_output_files(output_path, output_fname, i, N) :
 
     Args:
     - output_path: string, path to the output directory.
+    - output_fname: string, name of the output file.
     - i: int, process split i/N.
     - N: int, total number of splits.
 
@@ -933,11 +942,14 @@ def initialize_results(ALOS_flag, CH_flag, LC_flag, DEM_flag) :
     This function initializes the results placeholder.
 
     Args:
-    - None
+    - ALOS_flag: bool, whether to include ALOS data.
+    - CH_flag: bool, whether to include Canopy Height data.
+    - LC_flag: bool, whether to include Land Cover data.
+    - DEM_flag: bool, whether to include Digital Elevation Model data.
 
     Returns:
-    - (s2_data, gedi_data, alos_data) : dictionaries, with the Sentinel-2/Sentinel-1/GEDI/ALOS attributes as keys, and empty
-        lists as values.
+    - (s2_data, gedi_data, alos_data, ch_data, lc_data, dem_data) : dictionaries, with the S2/GEDI/ALOS/CH/LC/DEM attributes as
+        keys, and empty lists as values.
     """
 
     # Populate the GEDI results placeholder
@@ -970,12 +982,12 @@ def update_results(s2_data, gedi_data, alos_data, ch_data, lc_data, dem_data, s2
     This function updates the results placeholder with the data from the current GEDI footprint.
 
     Args:
-    - (s2_data, gedi_data, alos_data) : dictionaries, placeholders for the Sentinel-2, Sentinel-1 and GEDI data.
-    - (s2_footprint_data, gedi_footprint_data, alos_footprint_data) : dictionaries, with the Sentinel-2, Sentinel-1,
-        GEDI, and ALOS data to update the placeholders with.
+    - (s2_data, gedi_data, alos_data, ch_data, lc_data, dem_data) : dicts, placeholders for the S2/GEDI/ALOS/CH/LC/DEM data.
+    - (s2_footprint_data, gedi_footprint_data, alos_footprint_data, ch_footprint_data, lc_footprint_data, dem_footprint_data): dicts,
+        with the S2/GEDI/ALOS/CH/LC/DEM data to update the placeholders with.
     
     Returns:
-    - (s2_data, gedi_data, alos_data) : dictionaries, updated placeholders for the Sentinel-2, Sentinel-1 and GEDI data.
+    - (s2_data, gedi_data, alos_data, ch_data, lc_data, dem_data) : dicts, updated placeholders.
     """
     
     # Iterate over the placeholders and the new data, and update the placeholders
@@ -992,7 +1004,7 @@ def save_results(s2_data, gedi_data, alos_data, ch_data, lc_data, dem_data, tile
     results to the output file, group by group, and attribute by attribute.
 
     Args:
-    - (s2_data, gedi_data) : dictionaries, placeholders for the Sentinel-2, Sentinel-1 and GEDI data.
+    - (s2_data, gedi_data, alos_data, ch_data, lc_data, dem_data) : dicts, placeholders for the data.
     - tile_name: string, name of the Sentinel-2 tile.
     - chunk_size: int, number of patches to write to file at once.
     - file: h5py File object, opened hdf5 file.
@@ -1093,6 +1105,9 @@ def init_h5_group(file, tile_name, patch_size, chunk_size, ALOS_flag, CH_flag, L
     - patch_size: tuple of ints, size of the patches to extract.
     - chunk_size: int, number of patches to write to file at once.
     - ALOS_flag: bool, whether to extract ALOS data.
+    - CH_flag: bool, whether to extract Canopy Height data.
+    - LC_flag: bool, whether to extract Land Cover data.
+    - DEM_flag: bool, whether to extract Digital Elevation Model data.
 
     Returns:
     - None
@@ -1223,6 +1238,7 @@ def ch_quality_score(patch, NO_DATA = 255) :
 
     Args:
     - patch: 2d array of the CH agbd prediction.
+    - NO_DATA: int, value of the NO_DATA pixels.
 
     Returns:
     - quality_score: int between 0 and 100.
@@ -1316,30 +1332,37 @@ def unzip_l2a(path_s2, s2_prod) :
 
 def extract_patches(tile_name, year, tile_geom, patch_size, chunk_size, path_gedi, path_s2, path_alos, path_ch, path_lc, path_dem, output_path, output_fname, i, N, ALOS_flag, CH_flag, LC_flag, DEM_flag) :
     """
-    This function extracts the GEDI footprint-centered (patch_size[0] x patch_size[1]) patches from the Sentinel-2 L2A products with `tile_name`, as well
-    as the corresponding Sentinel-1 and ALOS PALSAR-2 data. The patches are iteratively saved to an hdf5 file.
+    This function extracts the GEDI footprint-centered (patch_size[0] x patch_size[1]) patches from the Sentinel-2 L2A products
+    with `tile_name`, as well as the corresponding ALOS PALSAR mosaics, Canopy Height data, Land Cover data, and Digital Elevation
+    Model data. The patches are iteratively saved to an hdf5 file.
 
     More specifically, the function:
     1) Loads the GEDI data using the geometry of the tile.
-    2) Groups the footprints by their corresponding Sentinel-2 product (so that we only process each product once, and extract the data corresponding
-        to the footprints).
-    3) Loads the ALOS PALSAR mosaics for the tile, across the years spanned by the S2 products.
-    4) Iterate over the S2 products, and for each product: ...
+    2) Groups the footprints by their corresponding Sentinel-2 product (so that we only process each product once, and extract the
+    data corresponding to the footprints).
+    3) Loads the other data sources for the tile and year at hand.
+    4) Iterate over the S2 products, the footprints, and the other data sources, and extracts the patches.
     5) Saves the results to the output file.
 
     Args:
     - tile_name: string, name of the Sentinel-2 tile.
+    - year: string, year of the Sentinel-2 products.
     - tile_geom: shapely Polygon, geometry of the Sentinel-2 tile.
     - patch_size: tuple of ints, size of the patches to extract.
     - chunk_size: int, number of patches to write to file at once.
-    - path_shp: string, path to the Sentinel-2 grid shapefile.
     - path_gedi: string, path to the GEDI data directory.
     - path_s2: string, path to the Sentinel-2 data directory.
     - path_alos: string, path to the ALOS PALSAR data directory.
+    - path_ch: string, path to the Canopy Height data directory.
+    - path_lc: string, path to the Land Cover data directory.
+    - path_dem: string, path to the Digital Elevation Model data directory.
     - output_path: string, path to the output directory.
     - i: int, process split i/N.
     - N: int, total number of splits.
     - ALOS_flag: boolean, whether to extract ALOS data.
+    - CH_flag: boolean, whether to extract Canopy Height data.
+    - LC_flag: boolean, whether to extract Land Cover data.
+    - DEM_flag: boolean, whether to extract Digital Elevation Model data.
 
     Returns:
     - None
@@ -1483,7 +1506,7 @@ if __name__ == "__main__":
     grid_df = gpd.read_file(path_shp, engine = 'pyogrio')
 
     # List all S2 tiles and their geometries
-    tile_names, tile_geoms = list_s2_tiles(tilenames, grid_df, path_s2)
+    tile_names, tile_geoms = list_s2_tiles(tilenames, grid_df)
 
     # Split into N, and process the i-th split
     tile_names = np.array_split(tile_names, N)[i]
@@ -1504,10 +1527,3 @@ if __name__ == "__main__":
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f'Elapsed time: {elapsed_time} seconds.')
-
-
-"""
-
-python create_patches.py --tilenames /scratch2/gsialelli/BiomassDatasetCreation/patches/test.txt --chunk_size 2 --i 0 --N 5
-
-"""

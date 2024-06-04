@@ -1,6 +1,9 @@
 """
 
-TODO
+This script performs inference on a Sentinel-2 tile, using a trained model. The model is loaded from the checkpoint
+folder, and the input data is loaded from the patches folder. The predictions are saved in the saving_dir folder.
+
+Launch the script with `bash inference.sh`.
 
 """
 
@@ -18,7 +21,6 @@ from torch import set_float32_matmul_precision
 from models import Net
 from wrapper import Model
 from torch import set_float32_matmul_precision
-import wandb
 from inference_helper import *
 from dataset import normalize_bands, normalize_data, encode_lc
 import warnings
@@ -33,7 +35,7 @@ warnings.filterwarnings("ignore", category=RuntimeWarning, message="Degrees of f
 
 def inf_parser():
     """ 
-        Main function. Returns an `ArgumentParser()` object containing the command-line arguments.
+    Parse the command line arguments for the inference script.
     """
 
     parser = argparse.ArgumentParser()
@@ -51,10 +53,21 @@ def inf_parser():
 
 
 def load_input(paths, tile_name, norm_values, cfg, alos_order = ['HH', 'HV']):
-    
     """ 
-        Reads the input tile specified in tile_name, as well as the corresponding encoded geographical coordinates,
-        and normalize the input. Sets lat, lon_1, lon_2, img.
+    Load the input data for the inference. 
+
+    Args:
+    - paths (dict) : dictionary with keys `norm`, `tiles`, and `ckpt` and with values
+        the paths to the corresponding file/folder
+    - tile_name (str) : the name of the Sentinel-2 tile to perform inference on
+    - norm_values (dict) : dictionary with the normalization values for the different bands
+    - cfg (dict) : dictionary with the configuration of the model
+    - alos_order (list) : list with the order of the ALOS bands
+
+    Returns:
+    - data (torch.Tensor) : the input data for the model
+    - mask (np.array) : the mask of the input data
+    - meta (dict) : the metadata of the input data
     """
     
     start_time = time.time()
@@ -135,11 +148,16 @@ def load_input(paths, tile_name, norm_values, cfg, alos_order = ['HH', 'HV']):
 
 
 def predict_patch(model, patch, device):
-
     """
-        Predict patch for AGBD.
+    Predict the AGBD of a patch using the model.
 
-        output: (np.ndarray) where the first dimension is the predicted mean, and the second is the variance
+    Args:
+    - model (torch.nn.Module) : the model to use for the prediction
+    - patch (torch.Tensor) : the patch to predict on
+    - device (torch.device) : the device to use for the prediction
+
+    Returns:
+    - preds (np.array) : the predictions of the model on the patch
     """
 
     patch = torch.unsqueeze(torch.permute(patch, [2,0,1]), 0).to(device)
@@ -148,17 +166,21 @@ def predict_patch(model, patch, device):
 
 
 def predict_tile(img, size, model, patch_size, overlap_size, device):
-
     """
-        Split 100km x 100km tile, ie. of shape (10 000, 10 000, num_features), into patches of size `patch_size`, with overlap by `overlap_size`.
+    Predict the AGBD of a Sentinel-2 tile using the model. We split the ~ 100km x 100km tile into patches of size
+    `patch_size`, with overlap by `overlap_size`. Best practices: . choose patch_size such that patch_size / 5 is
+    an integer; . choose overlap_size such that overlap_size / 2 is an integer.
 
-        - `patch_size` - (int, int) : Size (width, height) of the patches to extract.
-        - `overlap_size` - (int, int) : Size (width, height) of the desired overlap between two patches.
-    
-        Best practices: 
-        . choose patch_size such that patch_size / 5 is an integer
-        . choose overlap_size such that overlap_size / 2 is an integer
+    Args:
+    - img (np.array) : the Sentinel-2 tile to predict on
+    - size (int) : the size of the Sentinel-2 tile
+    - model (torch.nn.Module) : the model to use for the prediction
+    - patch_size (tuple) : the size of the patches to use for the prediction
+    - overlap_size (tuple) : the size of the overlap between the patches
+    - device (torch.device) : the device to use for the prediction
 
+    Returns:
+    - predictions (np.array) : the predictions of the model on the Sentinel-2 tile
     """
 
     # Define variables for the splitting of the Sentinel-2 tile into patches ######################################
@@ -230,21 +252,21 @@ def predict_tile(img, size, model, patch_size, overlap_size, device):
 class Inference:
 
     """ 
-        An `Inference` object loads a PyTorch model and performs AGBD inference at the Sentinel-2 tile level.
+    An `Inference` object loads a PyTorch model and performs AGBD inference at the Sentinel-2 tile level.
     """
 
     def __init__(self, arch, model_name, paths, tile_name, args, device):
 
         """
-            Initialization method.
+        Initialization method.
 
-            input:
-            - `arch` (str) : the architecture of the model to load
-            - `model_name` (str) : the name (<JOB_ID>-<model_idx> format) of the model to load
-            - `paths` (dict) : dictionary with keys `norm`, `tiles`, and `ckpt` and with values
-                the paths to the corresponding file/folder
-            - `tile_name` (str) : the name of the Sentinel-2 tile to perform inference on
-            - `cfg` (wandb.config) : dict with training configuration of the model to load
+        Args:
+        - arch (str) : the architecture of the model
+        - model_name (str) : the name of the model
+        - paths (dict) : dictionary with the paths to the different folders
+        - tile_name (str) : the name of the Sentinel-2 tile to perform inference on
+        - args (argparse.Namespace) : the arguments of the model
+        - device (torch.device) : the device to use for the inference
         """
 
         self.arch = arch
@@ -258,7 +280,7 @@ class Inference:
     def load_model(self):  # sourcery skip: raise-specific-error
 
         """ 
-            Loads the model, setting self.model
+        Loads the model, setting self.model
         """
 
         # Initialize the model
@@ -281,6 +303,10 @@ class Inference:
 # Code execution
 
 def run_inference():
+    """
+    This function runs the inference on a Sentinel-2 tile, using a trained model. The model is loaded from the checkpoint
+    folder, and the input data is loaded from the patches folder. The predictions are saved in the saving_dir folder.
+    """
     
     # Get the command line arguments and set the global variables
     args, dataset_path, model, arch, saving_dir, tile_name, dw, patch_size, overlap_size = inf_parser()

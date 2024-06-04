@@ -5,17 +5,16 @@ This script defines the dataset class for the GEDI dataset.
 """
 
 ############################################################################################################################
-# IMPORTS
+# Imports
 
 import h5py
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 import numpy as np
 from os.path import join
 import pickle
 from os.path import join, exists
 from datetime import datetime, timedelta
-import argparse
 np.seterr(divide = 'ignore') 
 
 # Define the nodata values for each data source
@@ -35,6 +34,7 @@ def initialize_index(fnames, mode, chunk_size, path_mapping, path_h5) :
     - mode (str): the mode of the dataset (train, val, test)
     - chunk_size (int): the size of the chunks
     - path_mapping (str): the path to the file mapping each mode to its tiles
+    - path_h5 (str): the path to the h5 files
 
     Returns:
     - idx (dict): dictionary mapping the file names to the tiles and the tiles to the chunks
@@ -76,6 +76,7 @@ def find_index_for_chunk(index, n, total_length):
     Args:
     - index (dict): dictionary mapping the files to the tiles and the tiles to the chunks
     - n (int): the n-th chunk
+    - total_length (int): the total number of chunks in the dataset
 
     Returns:
     - file_name (str): the name of the file
@@ -89,12 +90,11 @@ def find_index_for_chunk(index, n, total_length):
     # Iterate over the index to find the file, tile, and row index
     cumulative_sum = 0
     for file_name, file_data in index.items():
-        file_year = int(file_name.split('-')[1])
         for tile_name, num_rows in file_data.items():
             if cumulative_sum + num_rows > n:
                 # Calculate the row index within the tile
                 chunk_within_tile = n - cumulative_sum
-                return file_year, file_name, tile_name, chunk_within_tile
+                return file_name, tile_name, chunk_within_tile
             cumulative_sum += num_rows
 
 
@@ -155,7 +155,6 @@ def encode_coords(central_lat, central_lon, patch_size, resolution = 10) :
     return lat_cos, lat_sin, lon_cos, lon_sin
 
 
-
 def get_doy(num_days, patch_size, GEDI_START_MISSION = '2019-04-17') :
     """
     For a given number of days before/since the start of the GEDI mission, this function calculates
@@ -163,6 +162,7 @@ def get_doy(num_days, patch_size, GEDI_START_MISSION = '2019-04-17') :
 
     Args:
     - num_days (int): the number of days before/since the start of the GEDI mission
+    - patch_size (tuple): the size of the patch
     - GEDI_START_MISSION (str): the start date of the GEDI mission
 
     Returns:
@@ -195,6 +195,7 @@ def normalize_data(data, norm_values, norm_strat, nodata_value = None) :
     - data (np.array): the data to normalize
     - norm_values (dict): the normalization values
     - norm_strat (str): the normalization strategy
+    - nodata_value (int/float): the nodata value
 
     Returns:
     - normalized_data (np.array): the normalized data
@@ -250,6 +251,15 @@ def normalize_bands(bands_data, norm_values, order, norm_strat, nodata_value = N
 
 
 def encode_lc(lc_data) :
+    """
+    This function encodes the land cover data into sin/cosine values and scales the class probabilities to [0,1].
+
+    Args:
+    - lc_data (np.array): the land cover data
+
+    Returns:
+    - (lc_cos, lc_sin, lc_prob) (tuple): the sin/cosine values for the land cover classes and the class probabilities
+    """
 
     # Get the land cover classes
     lc_map = lc_data[:, :, 0]
@@ -267,7 +277,7 @@ def encode_lc(lc_data) :
 
 class GEDIDataset(Dataset):
 
-    def __init__(self, paths, years, chunk_size, mode, args, debug = False):
+    def __init__(self, paths, years, chunk_size, mode, args, version = 4, debug = False):
 
         # Get the parameters
         self.h5_path, self.norm_path, self.mapping = paths['h5'], paths['norm'], paths['map']
@@ -278,8 +288,8 @@ class GEDIDataset(Dataset):
         # Get the file names
         self.fnames = []
         for year in self.years : 
-            if debug : self.fnames += [f'data_subset-{year}-v3_{i}-20.h5' for i in range(2)]
-            else: self.fnames += [f'data_subset-{year}-v3_{i}-20.h5' for i in range(20)]
+            if debug : self.fnames += [f'data_subset-{year}-v{version}_{i}-20.h5' for i in range(2)]
+            else: self.fnames += [f'data_subset-{year}-v{version}_{i}-20.h5' for i in range(20)]
         
         # Initialize the index
         self.index, self.length = initialize_index(self.fnames, self.mode, self.chunk_size, self.mapping, self.h5_path)
@@ -304,12 +314,10 @@ class GEDIDataset(Dataset):
         assert self.mode in ['train', 'val', 'test'], "The mode must be one of 'train', 'val', 'test'"
 
         # Load the normalization values
-        self.norm_values = {}
-        for year in self.years : 
-            if not exists(join(self.norm_path, f'statistics_subset_{year}-v3.pkl')):
-                raise FileNotFoundError(f'The file `statistics_subset_{year}-v3.pkl` does not exist.')
-            with open(join(self.norm_path, f'statistics_subset_{year}-v3.pkl'), mode = 'rb') as f:
-                self.norm_values[year] = pickle.load(f)
+        if not exists(join(self.norm_path, f'statistics_subset_2019-2020-v{version}.pkl')):
+            raise FileNotFoundError(f'The file `statistics_subset_2019-2020-v{version}.pkl` does not exist.')
+        with open(join(self.norm_path, f'statistics_subset_2019-2020-v{version}.pkl'), mode = 'rb') as f:
+            self.norm_values = pickle.load(f)
 
         # Open the file handles
         self.handles = {fname: h5py.File(join(self.h5_path, fname), 'r') for fname in self.index.keys()}
@@ -326,7 +334,7 @@ class GEDIDataset(Dataset):
     def __getitem__(self, n):
             
         # Find the file, tile, and row index corresponding to this chunk
-        year, file_name, tile_name, idx = find_index_for_chunk(self.index, n, self.length)
+        file_name, tile_name, idx = find_index_for_chunk(self.index, n, self.length)
         
         # Get the file handle
         f = self.handles[file_name]
@@ -362,29 +370,28 @@ class GEDIDataset(Dataset):
             s2_bands = sr_bands
 
             # Normalize the bands
-            s2_bands = normalize_bands(s2_bands, self.norm_values[year]['S2_bands'], self.s2_order, self.norm_strat, NODATAVALS['S2_bands'])
+            s2_bands = normalize_bands(s2_bands, self.norm_values['S2_bands'], self.s2_order, self.norm_strat, NODATAVALS['S2_bands'])
             s2_bands = s2_bands[:, :, self.s2_indices]
             
             s2_num_days = f[tile_name]['Sentinel_metadata']['S2_date'][idx]
             s2_doy_cos, s2_doy_sin = get_doy(s2_num_days, self.patch_size)
             s2_num_days = np.full((self.patch_size[0], self.patch_size[1]), s2_num_days).astype(np.float32)
-            s2_num_days = normalize_data(s2_num_days, self.norm_values[year]['Sentinel_metadata']['S2_date'], 'min_max')
+            s2_num_days = normalize_data(s2_num_days, self.norm_values['Sentinel_metadata']['S2_date'], 'min_max')
 
             data.extend([s2_bands])
             
-            # TODO figure out what to do with the Sentinel-2 dates
             if self.s2_dates : data.extend([s2_num_days[..., np.newaxis], s2_doy_cos[..., np.newaxis], s2_doy_sin[..., np.newaxis]])
             
 
         # Sentinel-1 bands
         if self.s1:
             s1_bands = f[tile_name]['S1_bands'][idx, self.center - self.window_size : self.center + self.window_size + 1, self.center - self.window_size : self.center + self.window_size + 1, :].astype(np.float32)
-            s1_bands = normalize_bands(s1_bands, self.norm_values[year]['S1_bands'], self.s1_order, self.norm_strat)
+            s1_bands = normalize_bands(s1_bands, self.norm_values['S1_bands'], self.s1_order, self.norm_strat)
             
             s1_num_days = f[tile_name]['Sentinel_metadata']['S1_date'][idx, :]
             s1_doy_cos, s1_doy_sin = get_doy(s1_num_days, self.patch_size)
             s1_num_days = np.full((self.patch_size[0], self.patch_size[1]), s1_num_days).astype(np.float32)
-            s1_num_days = normalize_data(s1_num_days, self.norm_values[year]['Sentinel_metadata']['S1_date'], 'min_max')
+            s1_num_days = normalize_data(s1_num_days, self.norm_values['Sentinel_metadata']['S1_date'], 'min_max')
             
             data.extend([s1_bands, s1_num_days[..., np.newaxis], s1_doy_cos[..., np.newaxis], s1_doy_sin[..., np.newaxis]])
         
@@ -397,12 +404,11 @@ class GEDIDataset(Dataset):
         else: data.extend([lat_cos[..., np.newaxis], lat_sin[..., np.newaxis]])
         
         # GEDI dates
-        # TODO define what to do with the GEDI dates
         if self.gedi_dates :
             gedi_num_days = f[tile_name]['GEDI']['date'][idx]
             gedi_doy_cos, gedi_doy_sin = get_doy(gedi_num_days, self.patch_size)
             gedi_num_days = np.full((self.patch_size[0], self.patch_size[1]), gedi_num_days).astype(np.float32)
-            gedi_num_days = normalize_data(gedi_num_days, self.norm_values[year]['GEDI']['date'], 'min_max')
+            gedi_num_days = normalize_data(gedi_num_days, self.norm_values['GEDI']['date'], 'min_max')
             data.extend([gedi_num_days[..., np.newaxis], gedi_doy_cos[..., np.newaxis], gedi_doy_sin[..., np.newaxis]])
 
         # ALOS bands
@@ -415,17 +421,17 @@ class GEDIDataset(Dataset):
             alos_bands = np.where(alos_bands == NODATAVALS['ALOS_bands'], -9999.0, 10 * np.log10(np.power(alos_bands.astype(np.float32), 2)) - 83.0)
 
             # Normalize the bands
-            alos_bands = normalize_bands(alos_bands, self.norm_values[year]['ALOS_bands'], self.alos_order, self.norm_strat, -9999.0)
+            alos_bands = normalize_bands(alos_bands, self.norm_values['ALOS_bands'], self.alos_order, self.norm_strat, -9999.0)
 
             data.extend([alos_bands])
         
         # CH data
         if self.ch:
             ch = f[tile_name]['CH']['ch'][idx, self.center - self.window_size : self.center + self.window_size + 1, self.center - self.window_size : self.center + self.window_size + 1]
-            ch = normalize_data(ch, self.norm_values[year]['CH']['ch'], self.norm_strat, NODATAVALS['CH'])
+            ch = normalize_data(ch, self.norm_values['CH']['ch'], self.norm_strat, NODATAVALS['CH'])
             
             ch_std = f[tile_name]['CH']['std'][idx, self.center - self.window_size : self.center + self.window_size + 1, self.center - self.window_size : self.center + self.window_size + 1]
-            ch_std = normalize_data(ch_std, self.norm_values[year]['CH']['std'], self.norm_strat, NODATAVALS['CH'])
+            ch_std = normalize_data(ch_std, self.norm_values['CH']['std'], self.norm_strat, NODATAVALS['CH'])
 
             data.extend([ch[..., np.newaxis], ch_std[..., np.newaxis]])
         
@@ -439,7 +445,7 @@ class GEDIDataset(Dataset):
         # DEM data
         if self.dem:
             dem = f[tile_name]['DEM'][idx, self.center - self.window_size : self.center + self.window_size + 1, self.center - self.window_size : self.center + self.window_size + 1]
-            dem = normalize_data(dem, self.norm_values[year]['DEM'], self.norm_strat, NODATAVALS['DEM'])
+            dem = normalize_data(dem, self.norm_values['DEM'], self.norm_strat, NODATAVALS['DEM'])
             data.extend([dem[..., np.newaxis]])
         
         # Concatenate the data together
@@ -448,67 +454,7 @@ class GEDIDataset(Dataset):
         # Get the GEDI target data
         agbd = f[tile_name]['GEDI']['agbd'][idx]
         if self.norm_target :
-            agbd = normalize_data(agbd, self.norm_values[year]['GEDI']['agbd'], self.norm_strat)
+            agbd = normalize_data(agbd, self.norm_values['GEDI']['agbd'], self.norm_strat)
         agbd = torch.from_numpy(np.array(agbd, dtype = np.float32)).to(torch.float)
 
         return data, agbd
-
-
-############################################################################################################################
-# Execute
-
-if __name__ == '__main__' :
-
-    parser = argparse.ArgumentParser()
-    args = parser.parse_args()
-    args.latlon = True
-    args.bands = ['B01', 'B02', 'B03', 'B04', 'B05', 'B06', 'B07', 'B08', 'B8A', 'B09', 'B11', 'B12']
-    args.ch = True
-    args.s1 = False
-    args.alos = True
-    args.lc = True
-    args.dem = True
-    args.gedi_dates = False
-    args.patch_size = [25,25]
-    args.norm_strat = 'pct'
-    args.norm = False
-    args.s2_dates = False
-    args.gedi_dates = False
-
-
-    fnames = ['data_subset-2019-v3_0-20.h5', 'data_subset-2019-v3_1-20.h5', 'data_subset-2019-v3_10-20.h5', 'data_subset-2019-v3_11-20.h5', 'data_subset-2019-v3_12-20.h5', 'data_subset-2019-v3_13-20.h5', 'data_subset-2019-v3_14-20.h5', 'data_subset-2019-v3_15-20.h5', 'data_subset-2019-v3_16-20.h5', 'data_subset-2019-v3_17-20.h5', 'data_subset-2019-v3_18-20.h5', 'data_subset-2019-v3_19-20.h5', 'data_subset-2019-v3_2-20.h5', 'data_subset-2019-v3_3-20.h5', 'data_subset-2019-v3_4-20.h5', 'data_subset-2019-v3_5-20.h5', 'data_subset-2019-v3_6-20.h5', 'data_subset-2019-v3_7-20.h5', 'data_subset-2019-v3_8-20.h5', 'data_subset-2019-v3_9-20.h5']
-    
-    for mode in ['train', 'val', 'test'] :
-        print('Processing {} data...'.format(mode))
-        
-        ds = GEDIDataset({'h5':'/scratch2/gsialelli/patches', 'norm': '/scratch2/gsialelli/patches', 'map': '/scratch2/gsialelli/BiomassDatasetCreation/Data/download_Sentinel/biomes_split'}, fnames = fnames, chunk_size = 1, mode = mode, args = args)
-
-        # Create a DataLoader instance
-        data_loader = DataLoader(dataset = ds,
-                                batch_size = 512,
-                                shuffle = False,
-                                num_workers = 8)
-
-        # Iterate through the DataLoader
-
-        print('starting to iterate...')
-        
-        for batch_samples in data_loader:
-            images, _ = batch_samples
-            
-            # Check for NaN values
-            if torch.isnan(images).any() : 
-                print('Data is NaN')
-            
-            # CHeck for inf values
-            if torch.isinf(images).any() : 
-                print('Data is inf')
-            
-            # Check that data is in [0,1] range
-            if torch.min(images) < 0 or torch.max(images) > 1 : 
-                print('Data is not in [0,1] range')
-        
-        print('done!')
-
-
-

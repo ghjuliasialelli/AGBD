@@ -1,4 +1,5 @@
 """
+
 A CNN designed for pixel-wise analysis of Sentinel-2 satellite images.
 "XceptionS2" builds on the separable convolution described by Chollet (2017) who proposed the Xception network.
 Any kind of down sampling is avoided (no pooling, striding, etc.).
@@ -6,6 +7,7 @@ Any kind of down sampling is avoided (no pooling, striding, etc.).
 All details about the architecture are described in:
 Lang, N., Schindler, K., Wegner, J.D.: Country-wide high-resolution vegetation height mapping with Sentinel-2,
 Remote Sensing of Environment, vol. 233 (2019) <https://arxiv.org/abs/1904.13270>
+
 """
 
 import torch

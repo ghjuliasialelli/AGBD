@@ -1,11 +1,11 @@
 """
 
-TODO
+This file contains the implementation of the different models used in the project.
 
 """
 
 ###################################################################################################
-# IMPORTS 
+# Imports 
 import torch
 import torch.nn as nn
 from nico_net import NicoNet
@@ -76,8 +76,6 @@ class Up(nn.Module):
         x1 = self.up(x1)
         x = torch.cat([x2, x1], dim=1)
         return self.conv(x)
-
-
 
 
 def get_layers(patch_size, leaky_relu):
@@ -194,80 +192,6 @@ class SimpleFCN(nn.Module):
 
 
 ###################################################################################################
-# Gaussian Fully Convolutional Neural Network (FCN) ###############################################
-###################################################################################################
-
-class SimpleFCN_Gaussian(nn.Module):
-    def __init__(self,
-                 in_features=4,
-                 channel_dims = (16, 32, 64, 128),
-                 num_outputs=1,
-                 kernel_size=3,
-                 stride=1,
-                 max_pool=False,
-                 downsample=None):
-        """
-        A simple fully convolutional neural network.
-        Args:
-            in_features: input channel dimension (we give images with 4 channels).
-            channel_dims: list of channel feature dimensions.
-            num_outputs: number of the output dimension
-        """
-        super(SimpleFCN_Gaussian, self).__init__()
-        self.relu = nn.ReLU(inplace=True) # inplace=True can sometimes slightly decrease the memory usage
-        layers_mean = list()
-        for i in range(len(channel_dims)):
-            in_channels = in_features if i == 0 else channel_dims[i-1]
-            layers_mean.append(nn.Conv2d(in_channels=in_channels, 
-                                    out_channels=channel_dims[i], 
-                                    kernel_size=kernel_size, stride=stride, padding=1))
-            layers_mean.append(nn.BatchNorm2d(num_features=channel_dims[i]))
-            layers_mean.append(self.relu)
-            
-            # c.f. https://stats.stackexchange.com/questions/387482/pooling-vs-stride-for-downsampling
-            # if max_pool = False, stride of Conv2d should be set to 2
-            if max_pool:
-                layers_mean.append(nn.MaxPool2d(kernel_size=3, stride=1, padding=1))  
-        if downsample=="max":
-            layers_mean.append(nn.MaxPool2d(kernel_size=5, stride=5, padding=0))
-        elif downsample=="average":
-            layers_mean.append(nn.AvgPool2d(kernel_size=5, stride=5, padding=0))
-        self.conv_layers_mean = nn.Sequential(*layers_mean)
-        
-        layers_var = list()
-        for i in range(len(channel_dims)):
-            in_channels = in_features if i == 0 else channel_dims[i-1]
-            layers_var.append(nn.Conv2d(in_channels=in_channels, 
-                                    out_channels=channel_dims[i], 
-                                    kernel_size=kernel_size, stride=stride, padding=1))
-            layers_var.append(nn.BatchNorm2d(num_features=channel_dims[i]))
-            layers_var.append(self.relu)
-            
-            # c.f. https://stats.stackexchange.com/questions/387482/pooling-vs-stride-for-downsampling
-            # if max_pool = False, stride of Conv2d should be set to 2
-            if max_pool:
-                layers_var.append(nn.MaxPool2d(kernel_size=3, stride=1, padding=1))  
-        if downsample=="max":
-            layers_var.append(nn.MaxPool2d(kernel_size=5, stride=5, padding=0))
-        elif downsample=="average":
-            layers_var.append(nn.AvgPool2d(kernel_size=5, stride=5, padding=0))
-        self.conv_layers_var = nn.Sequential(*layers_var)
-        
-        self.conv_output_mean = nn.Conv2d(in_channels=channel_dims[-1], out_channels=num_outputs, kernel_size=1,
-                                     stride=1, padding=0, bias=True)
-        self.conv_output_var = nn.Conv2d(in_channels=channel_dims[-1], out_channels=num_outputs, kernel_size=1,
-                                     stride=1, padding=0, bias=True)
-
-    def forward(self, x):
-        mean = self.conv_layers_mean(x)
-        mean = self.conv_output_mean(mean)
-        
-        var = self.conv_layers_var(x)
-        var = self.conv_output_var(var)
-        return torch.cat((mean, var), dim=1)
-
-
-###################################################################################################
 # Wrapper #########################################################################################
 ###################################################################################################
 
@@ -286,12 +210,7 @@ class Net(nn.Module):
         if self.model_name == 'fcn' :
             self.model = SimpleFCN(in_features, channel_dims, num_outputs = 1, max_pool = max_pool, 
                                    downsample = downsample)
-            
-        # Gaussian FCN
-        elif self.model_name == 'fcn_gaussian' :
-            self.model = SimpleFCN_Gaussian(in_features, channel_dims, num_outputs = num_outputs, 
-                                            max_pool = max_pool, downsample = downsample)
-
+        
         # UNet
         elif self.model_name == 'unet' :
             self.model = UNet(n_channels = in_features, n_classes = num_outputs, patch_size = patch_size, 

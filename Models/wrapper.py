@@ -4,23 +4,30 @@ Definition of the Model() Module, which is the wrapper module for all models.
 
 """
 
+###################################################################################################
+# Imports
+
 import numpy as np
 import torch
 import torch.nn as nn
 import pytorch_lightning as pl
-from loss import TrainLoss, ValLoss, RMSE
+from loss import TrainLoss, RMSE
+
+############################################################################################################################
+# Helper functions
 
 class Model(pl.LightningModule):
 
     def __init__(self, model, lr, step_size, gamma, patch_size, downsample, loss_fn):
-        """ 
-        - `model` (MT_FCN or ResNeXt model) : base model to be trained;
-        - `lr` (float) : learning rate;
-        - `step_size` (int) : period of learning rate decay;
-        - `gamma` (float) : multiplicative factor of learning rate decay;
-        - `patch_size` (list) : size of the input patch;
-        - `downsample` (bool) : whether to downsample the predictions from 10m to 50m per pixel;
-        - `mt_weighting` (str) : multi task losses weighting strategy.
+        """
+        Args:
+        - model (nn.Module): the model to train
+        - lr (float): learning rate
+        - step_size (int): the number of epochs before decreasing the learning rate
+        - gamma (float): the factor by which the learning rate will be decreased
+        - patch_size (list): the size of the patches to extract, in pixels
+        - downsample (bool): whether to downsample the patches from 10m resolution to 50m resolution
+        - loss_fn (str): the loss function to use for the training.  (Only 'MSE' is currently supported.)
         """ 
 
         super().__init__()
