@@ -1,16 +1,8 @@
-name: agbd
 channels:
 - anaconda
 - conda-forge
 - defaults
-- pytorch
-- nvidia
 dependencies:
-- python=3.10
-- pytorch
-- torchvision
-- torchaudio
-- pytorch-cuda=11.8
 - lightgbm
 - h5py
 - pandas

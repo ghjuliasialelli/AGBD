@@ -218,7 +218,7 @@ class Net(nn.Module):
         
         # Nico's model
         elif self.model_name == "nico_net":
-            self.model = torch.compile(NicoNet(in_features = in_features, num_outputs = num_outputs))
+            self.model = NicoNet(in_features = in_features, num_outputs = num_outputs)
             
         else:
             raise NotImplementedError(f'unknown model name {model_name}')
