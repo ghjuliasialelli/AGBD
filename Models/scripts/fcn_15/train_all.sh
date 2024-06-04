@@ -139,7 +139,7 @@ num_outputs=1
 norm_strat='pct'
 
 # Launch training ################################################################################################
-cd ..
+
 python3 train.py --model_path $model_path \
                 --model_name $model_name \
                 --dataset_path $dataset_path \

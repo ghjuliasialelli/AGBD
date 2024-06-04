@@ -10,16 +10,14 @@ Here is a breakdown of the files and their content:
 | [scripts](scripts) | Bash scripts for training the models. |
 | [dataset.py](dataset.py) | Defines the Data Loader. |
 | [download.sh](download.sh) | Bash script to download the dataset. |
-| [eval.py](eval.py) | Implements the evaluation of the model(s). |
-| [eval.sh](eval.sh) | Launches the evaluation of the model(s). |
 | [inference_helper.py](inference_helper.py) | Helper functions for inference. |
 | [inference.py](inference.py) | Implements inference code for the model(s). |
 | [inference.sh](inference.sh) | Launches inference for the model(s). |
+| [inference.txt](inference.txt) | Lists the tile(s) on which to run inference. |
 | [loss.py](loss.py) | Defines the losses of the model(s). |
 | [models.py](models.py) | Defines the UNet and FCN models. |
 | [nico_net.py](nico_net.py) | Defines the model implemented by Lang et al. |
 | [parser.py](parser.py) | Defines the parser for most of the files. |
-| [requirements.txt](requirements.txt) | The packages to install for the environment. |
 | [rf.py](rf.py) | Defines the Gradient Boosting Decision Tree model. |
 | [run_jobs.py](run_jobs.py) | Launches all bash scripts in all subfolders. |
 | [table.py](table.py) | Generates the tabular dataset for GBDT, and the corresponding Data Loader. |
@@ -37,7 +35,7 @@ This will download the raw `.h5` files (for training the FCN/UNet/Lang et al. mo
 
 ## Launch training
 
-To launch the training of all of the models and all of their ablation studies, run `python run_jobs.py`. Otherwise, launch the appropriate scripts individually via, for example, `sbatch unet_15/train_all.sh`. Note that to launch the training, you will need to log-in to your [Weights and Biases](https://wandb.ai/home) account (or modify the code to remove wandb logging).
+To launch the training of all of the models and all of their ablation studies, run `python run_jobs.py`. Otherwise, launch the appropriate scripts individually via, for example, `sbatch scripts/unet_15/train_all.sh`. Note that to launch the training, you will need to log-in to your [Weights and Biases](https://wandb.ai/home) account (by simply running `wandb login`), or modify the code to remove wandb logging.
 
 ## Pre-trained weights
 
