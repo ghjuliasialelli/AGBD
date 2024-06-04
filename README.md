@@ -6,9 +6,10 @@ Authors: Ghjulia Sialelli ([gsialelli@ethz.ch](mailto:gsialelli@ethz.ch)), Torbe
 This repository contains the code used to create the results presented in the eponymous paper. We curated a dataset from various remote-sensing data sources ([Sentinel-2 L2A](https://sentinels.copernicus.eu/web/sentinel/sentinel-data-access/sentinel-products/sentinel-2-data-products/collection-1-level-2a), ALOS-2 PALSAR-2 [yearly mocaics](https://www.eorc.jaxa.jp/ALOS/en/dataset/fnf_e.htm), JAXA [Digital Elevation Model](https://www.eorc.jaxa.jp/ALOS/en/dataset/aw3d30/aw3d30_e.htm), Copernicus [Land Cover](https://land.copernicus.eu/en/products/global-dynamic-land-cover/copernicus-global-land-service-land-cover-100m-collection-3-epoch-2019-globe), Lang et al. [Canopy Height Map](https://langnico.github.io/globalcanopyheight/)) and GEDI [L4A](https://daac.ornl.gov/GEDI/guides/GEDI_L4A_AGB_Density_V2_1.html) Above-Ground Biomass (AGB) data. We developed benchmark models for the task of estimating Above-Ground Biomass (AGB).
 
 ## Installation
-To install the packages required to run this code, you can simply run the following line, which will create a conda virtual environment called `agbd`. Note that this was designed to be installed on Linux systems. 
+To install the packages required to run this code, you can simply run the following commands, which will create a conda virtual environment called `agbd`. Note that this was designed to be installed on Linux systems. 
 ```
-conda env create -f environment.yml
+conda create -n agbd python=3.10.9 pytorch torchvision torchaudio cudatoolkit=11.8 -c pytorch -c nvidia
+conda env update -n agbd -f requirements.yml
 ```
 
 ## Accessing the dataset 🤗
