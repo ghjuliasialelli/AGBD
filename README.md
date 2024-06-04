@@ -9,7 +9,7 @@ This repository contains the code used to create the results presented in the ep
 To install the packages required to run this code, you can simply run the following commands, which will create a conda virtual environment called `agbd`. Note that this was designed to be installed on Linux systems. 
 ```
 conda create -n agbd python=3.10.9 pytorch torchvision torchaudio cudatoolkit=11.8 -c pytorch -c nvidia
-conda env update -n agbd -f environment.yml
+conda env update -n agbd -f requirements.yml
 ```
 
 ## Accessing the dataset 🤗
