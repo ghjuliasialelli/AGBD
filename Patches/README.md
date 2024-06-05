@@ -10,21 +10,21 @@ wget 'https://libdrive.ethz.ch/index.php/s/VPio6i5UlXTgir0/download?path=%2F&fil
 
 Then, one can simply run:
 ```
-python create_patches.py  --tilenames example.txt \                            # file listing the tile(s) for which to extract the patches
-                          --year 2020 \                                        # year to consider for the S2 products
-                          --patch_size 25 25 \                                 # size for the patches
-                          --chunk_size 1 \                                     # hdf5 chunk size
-                          --path_shp S2_index/sentinel_2_index_shapefile.shp \ # shapefile for the S2 tiles
-                          --path_gedi example_data/L4A_30NXM.shp \             # path to the GEDI data
-                          --path_s2 example_data/ \                            # path to the S2 products
-                          --path_alos example_data/ \                          # path to the ALOS data
-                          --path_dem example_data/ \                           # path to the DEM data
-                          --path_ch example_data/ \                            # path to the CH data
-                          --path_lc example_data/ \                            # path to the LC data
-                          --output_path example_data/ \                        # path to the directory in which to save the output file
-                          --output_fname example_patches \                     # name of the output file
-                          --ALOS --CH --LC --DEM \                             # flags to indicate which data products to extract
-                          --i 0 --N 1                                          # split the listed tile(s) into N chunks, and process the i-th chunk 
+python create_patches.py  --tilenames example.txt \
+                          --year 2020 \
+                          --patch_size 25 25 \
+                          --chunk_size 1 \
+                          --path_shp S2_index/sentinel_2_index_shapefile.shp \
+                          --path_gedi example_data/L4A_30NXM.shp \
+                          --path_s2 example_data/ \
+                          --path_alos example_data/ \
+                          --path_dem example_data/ \
+                          --path_ch example_data/ \
+                          --path_lc example_data/ \
+                          --output_path example_data/ \
+                          --output_fname example_patches \
+                          --ALOS --CH --LC --DEM \
+                          --i 0 --N 1
 ```
 
 This will create the file `example_data/data_example_patches_0-1.h5`.
