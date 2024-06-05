@@ -15,6 +15,10 @@ conda create -n agbd python=3.10.9 pytorch torchvision torchaudio cudatoolkit=11
 ```
 conda env update -n agbd -f requirements.yml
 ```
+3. Activate the environment
+```
+conda activate agbd
+```
 
 ## Accessing the dataset 🤗
 The dataset is openly accessible on [HuggingFace](https://huggingface.co/datasets/prs-eth/AGBD), where it is stored in a streamable ML-ready format. You can use it as follows:
