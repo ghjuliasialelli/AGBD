@@ -10,6 +10,8 @@ dependencies:
 - lightning
 - geopandas
 - rasterio
+- gcc=13.2
+- scikit-image
 - pip
 - pip:
   - wandb
