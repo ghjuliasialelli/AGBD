@@ -25,4 +25,4 @@ python create_patches.py  --tilenames example.txt \
                           --ALOS --CH --LC --DEM --i 0 --N 1
 ```
 
-A description of the command line arguments can be found in the [code](https://github.com/ghjuliasialelli/AGBD/blob/main/Data/create_patches.py) itself.
+A description of the command line arguments can be found in the [code](https://github.com/ghjuliasialelli/AGBD/blob/main/Patches/create_patches.py) itself.
