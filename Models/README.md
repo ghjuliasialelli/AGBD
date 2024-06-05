@@ -27,7 +27,7 @@ Here is a breakdown of the files and their content:
 
 
 ## Downloading the data
-You can simply run the following command, to download the data into a newly created `Data/` folder.
+You can simply run the following command, to download the data into a newly created `Data/` folder. :warning:	The data represents 300GB :warning:	
 ```
 bash download.sh
 ```
