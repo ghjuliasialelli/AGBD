@@ -140,7 +140,7 @@ norm_strat='pct'
 
 # Launch training ################################################################################################
 
-python3 train.py --model_path $model_path \
+python train.py --model_path $model_path \
                 --model_name $model_name \
                 --dataset_path $dataset_path \
                 --augment "false" \

@@ -11,8 +11,8 @@
 
 ##################################################################################################################
 # Define the model to run inference with
-arch="fcn"
-model='58217185-1'
+arch="nico"
+model='60688111-1'
 
 # For your information, here are the models for which we provide the weigths:
 # Format `arch` `model`
@@ -49,20 +49,22 @@ if [[ "$first_part" == "cluster" ]]; then
     LIST_PRODS_FILE="/cluster/work/igp_psr/${LIST_TILES_FILE}"
     saving_dir="/cluster/work/igp_psr/gsialelli/EcosystemAnalysis/Models/Baseline/predictions"
 # When running locally, only the first product from the list will be processed
-elif [[ "$first_part" == "scratch2" ]]; then
+else
     echo "Running on a local machine"
-    LIST_PRODS_FILE="/scratch2/${LIST_TILES_FILE}"
+    LIST_PRODS_FILE="${current_directory}/${LIST_TILES_FILE}"
     SLURM_ARRAY_TASK_MIN=1
     SLURM_ARRAY_TASK_MAX=1
     SLURM_ARRAY_TASK_ID=1
-    saving_dir="/scratch2/gsialelli/EcosystemAnalysis/Models/Baseline/predictions"
-else
-    echo "Environment unknown"
+    saving_dir="${current_directory}/inference"
 fi
 
 ################################################################################################################################
 # Parse the tile names from LIST_PRODS_FILE
-readarray -t tile_names < ${LIST_PRODS_FILE}
+tile_names=()
+while IFS= read -r line; do
+    tile_names+=("$line")
+done < "${LIST_PRODS_FILE}"
+
 num_tiles=${#tile_names[@]}
 
 # Check if SLURM_ARRAY_TASK_MIN is 1
@@ -74,6 +76,8 @@ fi
 # Check if SLURM_ARRAY_TASK_MAX is equal to the length of the array
 if [ "$SLURM_ARRAY_TASK_MAX" -ne "$num_tiles" ]; then
     echo "Assertion failed: SLURM_ARRAY_TASK_MAX is not equal to the length of the array" >&2
+    echo "SLURM_ARRAY_TASK_MAX: $SLURM_ARRAY_TASK_MAX" >&2
+    echo "num_tiles: $num_tiles" >&2
     exit 1
 fi
 
@@ -86,12 +90,12 @@ echo "Launching predictions for tile: " ${tile}
 
 if [[ "$first_part" == "cluster" ]]; then
 
-    python3 inference.py --models ${models[@]} --arch ${arch} --dataset_path ${TMPDIR} \
+    python inference.py --model ${model} --arch ${arch} --dataset_path ${TMPDIR} \
             --saving_dir ${saving_dir} --tile_name $tile
 
 else
 
-    python3 inference.py --models ${models[@]} --arch ${arch} --dataset_path local \
+    python inference.py --model ${model} --arch ${arch} --dataset_path local \
             --saving_dir ${saving_dir} --tile_name $tile
 
 fi

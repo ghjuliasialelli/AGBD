@@ -217,7 +217,7 @@ class Net(nn.Module):
                                leaky_relu = leaky_relu)
         
         # Nico's model
-        elif self.model_name == "nico_net":
+        elif self.model_name == "nico":
             self.model = NicoNet(in_features = in_features, num_outputs = num_outputs)
             
         else:

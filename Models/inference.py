@@ -24,6 +24,7 @@ from torch import set_float32_matmul_precision
 from inference_helper import *
 from dataset import normalize_bands, normalize_data, encode_lc
 import warnings
+from os import getcwd
 
 # Silencing specific warnings
 warnings.filterwarnings("ignore", category=RuntimeWarning, message="Mean of empty slice")
@@ -127,7 +128,7 @@ def load_input(paths, tile_name, norm_values, cfg, alos_order = ['HH', 'HV']):
     dem = normalize_data(dem, norm_values['DEM'], cfg['norm_strat'], NODATAVALS['DEM'])
 
     # Add all of the data in the correct order -------------------------------------------------------------------
-    if cfg['ch'] : data.extend([s2_bands])
+    if cfg['bands'] != [] : data.extend([s2_bands])
     if cfg['latlon']: data.extend([lat_cos[..., np.newaxis], lat_sin[..., np.newaxis], lon_cos[..., np.newaxis], lon_sin[..., np.newaxis]])
     else: data.extend([lat_cos[..., np.newaxis], lat_sin[..., np.newaxis]])
     if cfg['alos'] : data.extend([alos_bands])
@@ -293,7 +294,12 @@ class Inference:
                         loss_fn = self.args.loss_fn)
     
         state_dict = torch.load(join(self.paths['ckpt'], self.arch, f'{self.model_name}_best.ckpt'), map_location = torch.device('cpu'))['state_dict']
-        model.load_state_dict(state_dict) 
+        try: model.load_state_dict(state_dict) 
+        except Exception as e:
+            if self.arch == 'nico' :
+                state_dict = {k.replace('_orig_mod.',''):v for k,v in state_dict.items()}
+                model.load_state_dict(state_dict)
+            else: raise e
         model.to(self.device)
         model.eval()
         model.model.eval()
@@ -318,19 +324,19 @@ def run_inference():
     if cpus_per_task is None: cpus_per_task = 16
     device  = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # Define the local dataset paths
-    local_dataset_paths = {'norm': '/scratch2/gsialelli/patches',
-                           'tiles': '/scratch2/gsialelli/S2_L2A',
-                           'ch': '/scratch3/gsialelli/CH',
-                           'ckpt': '/scratch2/gsialelli/EcosystemAnalysis/Models/Baseline/weights',
-                           'alos': '/scratch2/gsialelli/ALOS',
-                           'dem': '/scratch2/gsialelli/ALOS',
-                           'lc': '/scratch2/gsialelli/LC',
+    # Define the paths
+    if dataset_path == 'local' :
+        inference_dir = join(getcwd(), 'inference')
+        dataset_path = {'norm': inference_dir,
+                           'tiles': inference_dir,
+                           'ch': inference_dir,
+                           'ckpt': join(getcwd(), 'pretrained_weights'),
+                           'alos': inference_dir,
+                           'dem': inference_dir,
+                           'lc': inference_dir,
                            }
-    if dataset_path == 'local' : 
-        dataset_path = local_dataset_paths
     else: 
-        dataset_path = {k: dataset_path for k in local_dataset_paths.keys()}
+        raise NotImplementedError('Specify your own paths.')
     dataset_path['saving_dir'] = saving_dir
 
     # We get the config for one of the models
@@ -359,15 +365,10 @@ def run_inference():
     predictions[np.isnan(predictions)] = 65535
     predictions = predictions.astype(np.uint16)
 
-    # Get the metadata from the original Sentinel 2 tile
-    print(f'Saving predictions to {os.path.join(dataset_path["saving_dir"], f"{tile_name}_<agb/std>.tif")}')
-    
     # Save the AGB predictions to a GeoTIFF, with dtype uint16
     meta.update(driver = 'GTiff', dtype = np.uint16, count = 1, compress = 'lzw', nodata = 65535)
-    output_path = join(dataset_path['saving_dir'], arch, model.split('-')[0])
-    if not os.path.exists(output_path): os.makedirs(output_path)
-    
-    with rs.open(os.path.join(output_path, f'{tile_name}_agb.tif'), 'w', **meta) as f:
+    print(f'Saving predictions to {os.path.join(dataset_path["saving_dir"], f"{arch}_{tile_name}_<agb/std>.tif")}')
+    with rs.open(os.path.join(dataset_path["saving_dir"], f'{arch}_{tile_name}_agb.tif'), 'w', **meta) as f:
         f.write(predictions, 1)
 
 if __name__ == '__main__': 

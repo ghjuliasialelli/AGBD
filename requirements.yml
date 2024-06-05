@@ -5,6 +5,7 @@ channels:
 dependencies:
 - lightgbm
 - h5py
+- lightgbm
 - pandas
 - tqdm
 - lightning

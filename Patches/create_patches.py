@@ -50,9 +50,6 @@ from rasterio.transform import rowcol, AffineTransformer
 
 GEDI_START_MISSION = '2019-04-17'
 
-# Absolute path to `sentinel_2_index_shapefile.shp` file
-local_path_shp = join('S2_index', 'sentinel_2_index_shapefile.shp')
-
 # Sentinel-2 L2A bands that we want to use
 S2_L2A_BANDS = {'10m' : ['B02', 'B03', 'B04', 'B08'],
                 '20m' : ['B05', 'B06', 'B07', 'B8A', 'B11', 'B12', 'SCL'],
@@ -108,14 +105,14 @@ def setup_parser() :
 
     # Paths arguments
     parser.add_argument('--tilenames', help = 'Path to a .txt file listing the S2 tiles to consider.')
-    parser.add_argument('--path_shp', help = 'Path to the Sentinel-2 index shapefile.', default = local_path_shp)
-    parser.add_argument('--path_gedi', help = 'Path to the GEDI data directory.', default = '/scratch2/gsialelli/GEDI/L4A_California_Cuba_Paraguay_UnitedRepublicofTanzania_Ghana_Austria_Greece_Nepal_ShaanxiProvince_NewZealand_FrenchGuiana.shp')
-    parser.add_argument('--path_s2', help = 'Path to the Sentinel-2 data directory.', default = '/scratch2/gsialelli/S2_L2A')
-    parser.add_argument('--path_alos', help = 'Path to the ALOS data directory.', default = '/scratch2/gsialelli/ALOS')
-    parser.add_argument('--path_ch', help = 'Path to the CH data.', default = '/scratch3/gsialelli/CH')
-    parser.add_argument('--path_lc', help = 'Path to the LC data.', default = '/scratch2/gsialelli/LC')
-    parser.add_argument('--path_dem', help = 'Path to the DEM data.', default = '/scratch2/gsialelli/ALOS')
-    parser.add_argument('--output_path', help = 'Path to the output directory.', default = '/scratch2/gsialelli/patches')
+    parser.add_argument('--path_shp', help = 'Path to the Sentinel-2 index shapefile.', default = join('S2_index', 'sentinel_2_index_shapefile.shp'))
+    parser.add_argument('--path_gedi', help = 'Path to the GEDI data directory.', required = True)
+    parser.add_argument('--path_s2', help = 'Path to the Sentinel-2 data directory.', required = True)
+    parser.add_argument('--path_alos', help = 'Path to the ALOS data directory.', required = True)
+    parser.add_argument('--path_ch', help = 'Path to the CH data.', required = True)
+    parser.add_argument('--path_lc', help = 'Path to the LC data.', required = True)
+    parser.add_argument('--path_dem', help = 'Path to the DEM data.', required = True)
+    parser.add_argument('--output_path', help = 'Path to the output directory.', required = True)
     parser.add_argument('--output_fname', help = 'Name of the output file.', default = '')
 
     # Flags for the data to extract

@@ -12,14 +12,14 @@ import rasterio as rs
 import xml.etree.ElementTree as ET
 import datetime as dt
 import glob
-from os.path import join
-from rasterio.crs import CRS
 from rasterio.transform import AffineTransformer
 from scipy.ndimage import distance_transform_edt
 from skimage.transform import resize
 from pyproj import Transformer
-from os.path import exists
-
+from os.path import join, exists, dirname
+from os import makedirs
+import shutil
+from zipfile import ZipFile
 
 # Sentinel-2 L2A bands that we want to use
 S2_L2A_BANDS = {'10m' : ['B02', 'B03', 'B04', 'B08'],
@@ -322,7 +322,6 @@ def load_LC_data(path_lc, tile_name) :
         LC['transform'] = src.transform
     return LC
 
-
 def load_DEM_data(path_dem, tile_name) :
     """
     This function loads the DEM data for the current tile.
@@ -340,7 +339,6 @@ def load_DEM_data(path_dem, tile_name) :
         DEM['dem'] = src.read(1)
         DEM['transform'] = src.transform
     return DEM
-
 
 def load_CH_data(path_ch, tile_name, year) :
     """
@@ -365,7 +363,6 @@ def load_CH_data(path_ch, tile_name, year) :
         CH['std'] = src.read(1)
     
     return CH
-
 
 def load_ALOS_data(tile_name, path_alos, year) :
     """
@@ -394,10 +391,45 @@ def load_ALOS_data(tile_name, path_alos, year) :
     return alos_tiles_year
 
 
+def unzip_l2a(path_s2, s2_prod):
+    """
+    This function unzips the Sentinel-2 L2A product at hand, extracting only .tif files.
+
+    Args:
+    - path_s2: string, path to the Sentinel-2 data directory.
+    - s2_prod: string, name of the Sentinel-2 L2A product. (ends in .zip)
+
+    Returns:
+    - None
+    """
+
+    zip_path = join(path_s2, s2_prod + '.zip')
+    
+    with ZipFile(zip_path, 'r') as zip_ref:
+        # Find the index of the folder containing the SAFE files
+        namelist = zip_ref.namelist()
+        idx = namelist[0].split('/').index(s2_prod + '.SAFE')
+        
+        for file in namelist:
+            if (file.endswith('.tif')) or (file.endswith('MTD_MSIL2A.xml')) :
+                # Create a new path by slicing off unwanted parts of the path
+                parts = file.split('/')
+                new_path = join(*parts[idx:])
+                
+                # Full path to where the file will be extracted
+                full_path = join(path_s2, new_path)
+                
+                # Extract the file to the new path
+                makedirs(dirname(full_path), exist_ok=True)
+                if not file.endswith('/'):
+                    with zip_ref.open(file) as source, open(full_path, 'wb') as target:
+                        shutil.copyfileobj(source, target)
+
+
 def process_S2_tile(product, path_s2) :
     """
     This function iterates over the bands of the Sentinel-2 L2A product at hand; reprojects them to
-    EPSG 4326; upsamples them to 10m resolution (when needed) using bi-linear interpolation (nearest
+    EPSG 4326; upsamples them to 10m resolution (when needed) using cubic interpolation (nearest
     neighbor for the scene classification mask); and returns them.
     
     Args:
@@ -405,15 +437,13 @@ def process_S2_tile(product, path_s2) :
     - path_s2: string, path to the Sentinel-2 data directory.
 
     Returns:
-    - _transform: affine.Affine, transform of the 10m resolution B02 band.
-    - upsampling_shape: tuple of ints, shape of the 10m resolution bands.
-    - processed_bands: dict, with the bands as keys and the corresponding 2d arrays as values.
-    - crs: rasterio.crs.CRS, crs of the bands.
-    - bounds: tuple of floats, bounds of the bands.
-    - boa_offset: int, 1 if the product was acquired after January 25th, 2022; 0 otherwise.
-    - lat_cos, lat_sin, lon_cos, lon_sin: 2d arrays, lat/lon in the [0,1] range.
-    - meta: dict, metadata of the bands.
+    - processed_bands: dictionary, with the band names as keys, and the corresponding 2d arrays as values.
     """
+
+    # Unzip if necessary
+    if not exists(join(path_s2, product + '.SAFE')) :
+        print(f'Unzipping {product}...')
+        unzip_l2a(path_s2, product)
 
     # Get the path to the IMG_DATA/ folder of the Sentinel-2 product
     path_to_img_data = glob.glob(join(path_s2, product + '.SAFE', 'GRANULE', '*', 'IMG_DATA'))[0]

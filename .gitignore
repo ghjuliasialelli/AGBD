@@ -1,1 +1,8 @@
 __pycache__/
+Models/inference/
+Models/Data/
+Patches/example_data/
+Models/pretrained_weights/
+Models/wandb/
+*.DS_Store
+Models/feature_importance/

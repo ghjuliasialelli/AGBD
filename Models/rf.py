@@ -9,6 +9,8 @@ This file contains the Random Forest model class.
 
 import lightgbm as lgb
 import numpy as np
+from os.path import isdir
+from os import makedirs
 
 #######################################################################################################################
 # Helper functions 
@@ -73,6 +75,7 @@ class RandomForest():
 
             # Plot and save the feature importance
             ax = lgb.plot_importance(self.booster, importance_type = 'gain', figsize = (10, 5))
+            if not isdir('feature_importance') : makedirs('feature_importance')
             ax.figure.savefig(f'fimp/{self.model_name}-{idx}.png')
 
             # Save the model

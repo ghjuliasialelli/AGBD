@@ -5,6 +5,7 @@ channels:
 dependencies:
 - conda=23.10.0
 - lightgbm
+- lightgbm
 - h5py
 - pandas
 - tqdm

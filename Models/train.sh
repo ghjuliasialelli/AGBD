@@ -55,7 +55,7 @@ fi
 loss_fn='MSE'
 
 # Architecture, can be one of the following: 'fcn', 'unet', 'rf', 'nico'
-arch="fcn"
+arch="rf"
 
 # Features to include
 ch="true"
@@ -70,7 +70,7 @@ gedi_dates="false"
 s2_dates="false"
 
 # Year to train on
-years=(2019 2020)
+years=(2019)
 
 echo "Year: ${years[@]}"
 echo "Architecture: $arch"
@@ -142,7 +142,7 @@ num_outputs=1
 
 # Launch training ################################################################################################
 
-python3 train.py --model_path $model_path \
+python train.py --model_path $model_path \
                 --model_name $model_name \
                 --dataset_path $dataset_path \
                 --augment "false" \

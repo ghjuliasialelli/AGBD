@@ -5,7 +5,7 @@ This script is used to extract the features and labels of the central pixels fro
 """
 
 ############################################################################################################################
-# Imports
+# IMPORTS
 
 from dataset import *
 import argparse
@@ -40,12 +40,12 @@ def construct_feature_names(args) :
     return feature_names
 
 
-def create_table(fnames, paths, mode, year = 2019) :
+def create_table(paths, mode, year = 2019, version = 4) :
     """
     This function creates the features and labels csv files for the train, val and test sets.
     You can run it locally with the following arguments:
-        - fnames = [f'data_subset-2019-v3_{i}-20.h5' for i in range(20)]
-        - paths = {'h5':'/scratch2/gsialelli/patches', 'norm': '/scratch2/gsialelli/patches/statistics_subset_2019-v3.pkl', 
+        - fnames = [f'data_subset-2019-v4_{i}-20.h5' for i in range(20)]
+        - paths = {'h5':'/scratch2/gsialelli/patches', 'norm': '/scratch2/gsialelli/patches', 
         'map': '/scratch2/gsialelli/BiomassDatasetCreation/Data/download_Sentinel/biomes_split'}
 
     Args:
@@ -79,7 +79,7 @@ def create_table(fnames, paths, mode, year = 2019) :
     print(f'Processing {mode} data...')
 
     # Get the dataset
-    custom_dataset = GEDIDataset(paths, fnames = fnames, chunk_size = 1, mode = mode, args = args)
+    custom_dataset = GEDIDataset(paths, years = [year], chunk_size = 1, mode = mode, args = args)
     data_loader = DataLoader(dataset = custom_dataset,
                             batch_size = 1024,
                             shuffle = False,
@@ -107,8 +107,8 @@ def create_table(fnames, paths, mode, year = 2019) :
     print()
 
     # Save the data
-    df_features.to_csv(join(paths['h5'], f'{mode}_features_{year}.csv'), index = False)
-    df_labels.to_csv(join(paths['h5'], f'{mode}_labels_{year}.csv'), index = False)
+    df_features.to_csv(join(paths['h5'], f'{mode}_features_{year}-v{version}.csv'), index = False)
+    df_labels.to_csv(join(paths['h5'], f'{mode}_labels_{year}-v{version}.csv'), index = False)
 
 
 class RF_GEDIDataset(Dataset) :
@@ -116,7 +116,7 @@ class RF_GEDIDataset(Dataset) :
     This class is a subclass of torch.utils.data.Dataset. It is used to load the features and labels from the csv files.
     """
 
-    def __init__(self, data_path, mode, args, years) :
+    def __init__(self, data_path, mode, args, years, version = 4) :
         """
         This function initializes the class.
 
@@ -134,9 +134,9 @@ class RF_GEDIDataset(Dataset) :
         if mode == 'train' : print('Loading features:', columns_to_load)
 
         # Load the features
-        features_data = [pd.read_csv(join(data_path, f'{mode}_features_{year}.csv'), usecols = columns_to_load) for year in years]
+        features_data = [pd.read_csv(join(data_path, f'{mode}_features_{year}-v{version}.csv'), usecols = columns_to_load) for year in years]
         self.features = pd.concat(features_data, ignore_index = True)
         
         # Load the labels
-        labels_data = [pd.read_csv(join(data_path, f'{mode}_labels_{year}.csv')) for year in years]
+        labels_data = [pd.read_csv(join(data_path, f'{mode}_labels_{year}-v{version}.csv')) for year in years]
         self.labels = pd.concat(labels_data, ignore_index = True)

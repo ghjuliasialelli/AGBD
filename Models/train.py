@@ -42,9 +42,11 @@ def get_progress_bar():
 #####################################################################################################################################################
 # Code execution
 
-local_dataset_paths = {'h5':'/scratch2/gsialelli/patches', 
-                    'norm': '/scratch2/gsialelli/patches', 
-                    'map': '/scratch2/gsialelli/BiomassDatasetCreation/Data/download_Sentinel/biomes_split'}
+current_dir = os.getcwd()
+data_dir = os.path.join(current_dir, 'Data')
+local_dataset_paths = {'h5': data_dir, 
+                    'norm': data_dir, 
+                    'map': data_dir}
 
 def main():
     
