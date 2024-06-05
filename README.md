@@ -6,19 +6,22 @@ Authors: Ghjulia Sialelli ([gsialelli@ethz.ch](mailto:gsialelli@ethz.ch)), Torbe
 This repository contains the code used to create the results presented in the eponymous paper. We curated a dataset from various remote-sensing data sources ([Sentinel-2 L2A](https://sentinels.copernicus.eu/web/sentinel/sentinel-data-access/sentinel-products/sentinel-2-data-products/collection-1-level-2a), ALOS-2 PALSAR-2 [yearly mocaics](https://www.eorc.jaxa.jp/ALOS/en/dataset/fnf_e.htm), JAXA [Digital Elevation Model](https://www.eorc.jaxa.jp/ALOS/en/dataset/aw3d30/aw3d30_e.htm), Copernicus [Land Cover](https://land.copernicus.eu/en/products/global-dynamic-land-cover/copernicus-global-land-service-land-cover-100m-collection-3-epoch-2019-globe), Lang et al. [Canopy Height Map](https://langnico.github.io/globalcanopyheight/)) and GEDI [L4A](https://daac.ornl.gov/GEDI/guides/GEDI_L4A_AGB_Density_V2_1.html) Above-Ground Biomass (AGB) data. We developed benchmark models for the task of estimating Above-Ground Biomass (AGB).
 
 ## Installation
-To install the packages required to run this code, you can simply run the following commands, which will create a conda virtual environment called `agbd`. Note that this was designed to be installed on Linux systems. 
-1. Create a new environment called `agbd` with PyTorch (or follow the instructions on [pytorch.org](https://pytorch.org/get-started/locally)). (Note that CUDA is not available on MacOS)
+To install the packages required to run this code, you can simply run the following commands, which will create a conda virtual environment called `agbd`. For more details, follow the instructions on [pytorch.org](https://pytorch.org/get-started/locally).
+
+#### For Linux users
 ```
 conda create -n agbd python=3.10.9 pytorch torchvision torchaudio cudatoolkit=11.8 -c pytorch -c nvidia
-```
-2. Install all other required packages using the `requirements.yml` file
-```
 conda env update -n agbd -f requirements.yml
-```
-3. Activate the environment
-```
 conda activate agbd
 ```
+
+#### For Mac users
+```
+conda create -n agbd python=3.10.9 pytorch::pytorch torchvision torchaudio -c pytorch 
+conda env update -n agbd -f requirements_mac.yml
+conda activate agbd
+```
+
 
 ## Accessing the dataset 🤗
 The dataset is openly accessible on [HuggingFace](https://huggingface.co/datasets/prs-eth/AGBD), where it is stored in a streamable ML-ready format. You can use it as follows:
