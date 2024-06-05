@@ -7,9 +7,17 @@ This repository contains the code used to create the results presented in the ep
 
 ## Installation
 To install the packages required to run this code, you can simply run the following commands, which will create a conda virtual environment called `agbd`. Note that this was designed to be installed on Linux systems. 
+1. Create a new environment called `agbd` with PyTorch (or follow the instructions on [pytorch.org](https://pytorch.org/get-started/locally)). (Note that CUDA is not available on MacOS)
 ```
 conda create -n agbd python=3.10.9 pytorch torchvision torchaudio cudatoolkit=11.8 -c pytorch -c nvidia
+```
+2. Install all other required packages using the `requirements.yml` file
+```
 conda env update -n agbd -f requirements.yml
+```
+3. Activate the environment
+```
+conda activate agbd
 ```
 
 ## Accessing the dataset 🤗
