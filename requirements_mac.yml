@@ -1,0 +1,17 @@
+channels:
+- anaconda
+- conda-forge
+- defaults
+dependencies:
+- conda=23.10.0
+- lightgbm
+- h5py
+- pandas
+- tqdm
+- lightning
+- geopandas
+- rasterio=1.3.2
+- scikit-image
+- pip
+- pip:
+  - wandb
