@@ -76,9 +76,10 @@ class RandomForest():
             # Plot and save the feature importance
             ax = lgb.plot_importance(self.booster, importance_type = 'gain', figsize = (10, 5))
             if not isdir('feature_importance') : makedirs('feature_importance')
-            ax.figure.savefig(f'fimp/{self.model_name}-{idx}.png')
+            ax.figure.savefig(f'feature_importance/{self.model_name}-{idx}.png')
 
             # Save the model
+            if not isdir('weights') : makedirs('weights')
             self.booster.save_model(f'weights/{self.model_name}-{idx}.txt')
 
         self.ens_val_rmse = np.mean(self.val_rmses)

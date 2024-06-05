@@ -6,3 +6,4 @@ Models/pretrained_weights/
 Models/wandb/
 *.DS_Store
 Models/feature_importance/
+Models/weights/
