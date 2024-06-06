@@ -27,6 +27,6 @@ python create_patches.py  --tilenames example.txt \
                           --i 0 --N 1
 ```
 
-This will create the file `example_data/data_example_patches_0-1.h5`.
+This will create the file `example_data/data-2019_example_patches_0-1.h5`.
 
 A description of the command line arguments can be found in the [code](https://github.com/ghjuliasialelli/AGBD/blob/main/Patches/create_patches.py) itself.
