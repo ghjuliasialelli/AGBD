@@ -45,7 +45,7 @@ wget --header="Cookie: oc_sessionPassphrase=G58vqE1m1B4pBYVOAnvgNHrLX6tHcaWWPGtO
      --header="Referer: https://libdrive.ethz.ch/" \
      "https://libdrive.ethz.ch/index.php/s/VPio6i5UlXTgir0/download?path=%2F&files=predictions&downloadStartSecret=gxairgqzc" -O predictions.tar
 ```
-
+You will get a `.tif` file per Sentinel-2 tile in the regions of interest.
 
 ## License
 
