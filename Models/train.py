@@ -64,9 +64,11 @@ def main():
     if (args.dataset_path == 'local') :
         accelerator = 'auto'
         cpus_per_task = 8
+        persistent_workers = True
     else:
         accelerator = 'gpu'
         cpus_per_task = int(os.environ.get('SLURM_CPUS_PER_TASK'))
+        persistent_workers = True
     if cpus_per_task is None: cpus_per_task = 16
 
     # In the case of RF, the dataset is tabular
@@ -80,7 +82,7 @@ def main():
         train_dataset = GEDIDataset(paths = dataset_path, years = args.years, chunk_size = args.chunk_size, mode = "train", args = args, debug = debug)
         val_dataset = GEDIDataset(paths = dataset_path, years = args.years, chunk_size = args.chunk_size, mode = "val", args = args, debug = debug)
         test_dataset = GEDIDataset(paths = dataset_path, years = args.years, chunk_size = args.chunk_size, mode = "test", args = args, debug = debug)
-        train_loader = DataLoader(train_dataset, batch_size = args.batch_size, shuffle = True, num_workers = cpus_per_task, persistent_workers = True, pin_memory = True)
+        train_loader = DataLoader(train_dataset, batch_size = args.batch_size, shuffle = True, num_workers = cpus_per_task, persistent_workers = persistent_workers, pin_memory = True)
         val_loader = DataLoader(val_dataset, batch_size = args.batch_size, shuffle = False, num_workers = cpus_per_task, pin_memory = True)
         test_loader = DataLoader(test_dataset, batch_size = args.batch_size, shuffle = False, num_workers = cpus_per_task, pin_memory = True)
 

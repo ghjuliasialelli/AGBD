@@ -55,7 +55,7 @@ fi
 loss_fn='MSE'
 
 # Architecture, can be one of the following: 'fcn', 'unet', 'rf', 'nico'
-arch="rf"
+arch="nico"
 
 # Features to include
 ch="true"
