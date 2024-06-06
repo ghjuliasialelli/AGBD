@@ -4,7 +4,10 @@ This folder contains the code and data to showcase how the patches were obtained
 
 First, of all run the following command to download the example data. This includes a handful of Sentinel-2 L2A products, the ALOS-2 PALSAR-2 yearly mosaic for 2020, the JAXA Digital Elevation Model, the Copernicus Land Cover, and the yearly Canopy Height Map for 2020. We take for this example, the Sentinel-2 tile 30NXM, located in Ghana.
 ```
-wget 'https://libdrive.ethz.ch/index.php/s/VPio6i5UlXTgir0/download?path=%2F&files=example_data&downloadStartSecret=y3gyn0c105l'
+wget --header="Cookie: oc_sessionPassphrase=G58vqE1m1B4pBYVOAnvgNHrLX6tHcaWWPGtOIaL16X0lxxinrTg3off1h7WaVNukrS39Jr1BkhsdJreHtvLeVevT9CrXjr%2BzbE4Nli9dI4BHB1AjqAiLQl82nCZZ0QmC; ocDownloadStarted=gxairgqzc" \
+     --header="Connection: keep-alive" \ 
+     --header="Referer: https://libdrive.ethz.ch/" \
+     "https://libdrive.ethz.ch/index.php/s/VPio6i5UlXTgir0/download?path=%2F&files=example_data&downloadStartSecret=gxairgqzc" -O example_data.tar
 ```
 
 
