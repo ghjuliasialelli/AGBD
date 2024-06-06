@@ -928,8 +928,8 @@ def setup_output_files(output_path, output_fname, i, N) :
     """
 
     # Initialize output files for each process to write the patches to
-    if output_fname == '' : fname = f'data_{i}-{N}.h5'
-    else: fname = f'data_{output_fname}_{i}-{N}.h5'
+    if output_fname == '' : fname = f'data-{year}_{i}-{N}.h5'
+    else: fname = f'data_{output_fname}-{year}_{i}-{N}.h5'
     with h5py.File(join(output_path, fname), 'w') as file :
         print(f'Initializing output file for split {i}/{N}.')
 
