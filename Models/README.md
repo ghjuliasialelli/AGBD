@@ -30,19 +30,13 @@ Here is a breakdown of the files and their content:
 
 1) To run inference on an example tile, you first need to download some example data, as follows:
 ```
-wget --header="Cookie: oc_sessionPassphrase=G58vqE1m1B4pBYVOAnvgNHrLX6tHcaWWPGtOIaL16X0lxxinrTg3off1h7WaVNukrS39Jr1BkhsdJreHtvLeVevT9CrXjr%2BzbE4Nli9dI4BHB1AjqAiLQl82nCZZ0QmC; ocDownloadStarted=gxairgqzc" \
-     --header="Connection: keep-alive" \ 
-     --header="Referer: https://libdrive.ethz.ch/" \
-     "https://libdrive.ethz.ch/index.php/s/VPio6i5UlXTgir0/download?path=%2F&files=inference&downloadStartSecret=gxairgqzc" -O inference.tar
+wget "https://libdrive.ethz.ch/index.php/s/VPio6i5UlXTgir0/download?path=%2F&files=inference&downloadStartSecret=gxairgqzc" -O inference.tar
 ```
 And run `tar -xvf inference.tar`.
 
 2) You also need to download the pre-trained weights of the best model for each architecture, launch the following command:
 ```
-wget --header="Cookie: oc_sessionPassphrase=G58vqE1m1B4pBYVOAnvgNHrLX6tHcaWWPGtOIaL16X0lxxinrTg3off1h7WaVNukrS39Jr1BkhsdJreHtvLeVevT9CrXjr%2BzbE4Nli9dI4BHB1AjqAiLQl82nCZZ0QmC; ocDownloadStarted=gxairgqzc" \
-     --header="Connection: keep-alive" \ 
-     --header="Referer: https://libdrive.ethz.ch/" \
-     "https://libdrive.ethz.ch/index.php/s/VPio6i5UlXTgir0/download?path=%2F&files=pretrained_weights&downloadStartSecret=gxairgqzc" -O pretrained_weights.tar
+wget "https://libdrive.ethz.ch/index.php/s/VPio6i5UlXTgir0/download?path=%2F&files=pretrained_weights&downloadStartSecret=gxairgqzc" -O pretrained_weights.tar
 ```
 And run `tar -xvf pretrained_weights.tar`.
 
