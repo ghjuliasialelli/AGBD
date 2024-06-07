@@ -40,10 +40,7 @@ We provide an example for the patches creation procedure, in the [Patches sectio
 ## Dense predictions
 Our dense predictions for the region covered by the dataset can be downloaded via the following command (it represents ~40GB) :
 ```
-wget --header="Cookie: oc_sessionPassphrase=G58vqE1m1B4pBYVOAnvgNHrLX6tHcaWWPGtOIaL16X0lxxinrTg3off1h7WaVNukrS39Jr1BkhsdJreHtvLeVevT9CrXjr%2BzbE4Nli9dI4BHB1AjqAiLQl82nCZZ0QmC; ocDownloadStarted=gxairgqzc" \
-     --header="Connection: keep-alive" \ 
-     --header="Referer: https://libdrive.ethz.ch/" \
-     "https://libdrive.ethz.ch/index.php/s/VPio6i5UlXTgir0/download?path=%2F&files=predictions&downloadStartSecret=gxairgqzc" -O predictions.tar
+wget "https://libdrive.ethz.ch/index.php/s/VPio6i5UlXTgir0/download?path=%2F&files=predictions&downloadStartSecret=gxairgqzc" -O predictions.tar
 ```
 You will get a `.tif` file per Sentinel-2 tile in the regions of interest.
 
