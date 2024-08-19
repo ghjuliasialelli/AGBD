@@ -28,7 +28,7 @@ The dataset is openly accessible on [HuggingFace](https://huggingface.co/dataset
 ```
 #!pip install datasets
 from datasets import load_dataset
-dataset = load_dataset("prs-eth/AGBD", streaming=True)["train"] # or test, or val
+dataset = load_dataset('prs-eth/AGBD', trust_remote_code=True, streaming=True)["train"]  # Options: "train", "val", "test"
 ```
 
 ## Data downloading and Models training
