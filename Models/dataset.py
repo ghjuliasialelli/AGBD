@@ -398,7 +398,9 @@ class GEDIDataset(Dataset):
         # Latitude and longitude data
         lat_offset, lat_decimal = f[tile_name]['GEDI']['lat_offset'][idx], f[tile_name]['GEDI']['lat_decimal'][idx]
         lon_offset, lon_decimal = f[tile_name]['GEDI']['lon_offset'][idx], f[tile_name]['GEDI']['lon_decimal'][idx]
-        lat, lon = lat_offset + lat_decimal, lon_offset + lon_decimal
+        # lat, lon = lat_offset + lat_decimal, lon_offset + lon_decimal
+        lat = np.sign(lat_decimal) * (np.abs(lat_decimal) + lat_offset)
+        lon = np.sign(lon_decimal) * (np.abs(lon_decimal) + lon_offset)
         lat_cos, lat_sin, lon_cos, lon_sin = encode_coords(lat, lon, self.patch_size)
         if self.latlon : data.extend([lat_cos[..., np.newaxis], lat_sin[..., np.newaxis], lon_cos[..., np.newaxis], lon_sin[..., np.newaxis]])
         else: data.extend([lat_cos[..., np.newaxis], lat_sin[..., np.newaxis]])
