@@ -31,7 +31,7 @@ from datasets import load_dataset
 dataset = load_dataset('prs-eth/AGBD', trust_remote_code=True, streaming=True)["train"]  # Options: "train", "val", "test"
 ```
 
-## Data downloading and Models training
+## :arrows_counterclockwise: Data downloading and Models training
 Should you wish to reproduce our results, we provide in the [Models section](https://github.com/ghjuliasialelli/AGBD/tree/main/Models) of this repository the code we used to train our benchmark models. Should you want to reproduce our experiments with the data format we used, you can download the data and use the provided data loader. You can find further instruction on how to do it in the dedicated folder. Note that the data is ~300GB.
 
 ## Patches creation
@@ -43,8 +43,12 @@ Our dense predictions for the region covered by the dataset can be downloaded vi
 wget "https://libdrive.ethz.ch/index.php/s/VPio6i5UlXTgir0/download?path=%2F&files=predictions&downloadStartSecret=gxairgqzc" -O predictions.tar
 ```
 You will get a `.tif` file per Sentinel-2 tile in the regions of interest.
+Please note that those dense predictions pre-date the "latitude / longitude bug" (see the [changelog](changelog.md) for more information). As we are currently working on a better model, we do not generate the post-bug predictions, but will directly upload the best ones shortly.
 
-## License
+## :arrow_up: Updates 
+See the [changelog](changelog.md) for more information about what was updated with each new commit (when relevant).
+
+## :unlock: License
 
 This work is licensed under a
 [Creative Commons Attribution-NonCommercial 4.0 International License][cc-by-nc].
