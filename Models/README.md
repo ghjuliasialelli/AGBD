@@ -34,7 +34,7 @@ wget "https://libdrive.ethz.ch/index.php/s/VPio6i5UlXTgir0/download?path=%2F&fil
 ```
 And run `tar -xvf inference.tar`.
 
-2) You also need to download the pre-trained weights of the best model for each architecture, launch the following command:
+2) To download the pre-trained weights for each architecture (and each configuration), launch the following command:
 ```
 wget "https://libdrive.ethz.ch/index.php/s/VPio6i5UlXTgir0/download?path=%2F&files=pretrained_weights&downloadStartSecret=gxairgqzc" -O pretrained_weights.tar
 ```
