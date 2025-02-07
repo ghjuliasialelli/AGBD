@@ -246,7 +246,7 @@ class NicoNet(pl.LightningModule) :
         Module defining the Multi Task (MT) version of the Xception architecture. It is made of:
     """
 
-    def __init__(self, in_features, num_outputs):
+    def __init__(self, in_features, num_outputs, num_sepconv_blocks = 8, num_sepconv_filters = 728, long_skip = False):
         """
             - `in_features` (int) : `in_channels` expected by the first layer;
             - `num_outputs` (int) : `out_channels` expected by the last layer of the body;
@@ -259,8 +259,10 @@ class NicoNet(pl.LightningModule) :
 
         self.intermediary_outputs = num_outputs
 
-        self.body = XceptionS2(in_channels=self.in_features, out_channels=self.intermediary_outputs, num_sepconv_blocks=8, num_sepconv_filters=728, returns="targets",
-                long_skip=False, manual_init=False, freeze_features=False, freeze_last_mean=False)
+        self.body = XceptionS2(in_channels = self.in_features, out_channels = self.intermediary_outputs,
+                                num_sepconv_blocks = num_sepconv_blocks, num_sepconv_filters = num_sepconv_filters,
+                                returns = "targets", long_skip = long_skip, manual_init = False, freeze_features = False,
+                                freeze_last_mean=False)
 
 
     def forward(self, x) :

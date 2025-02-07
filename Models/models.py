@@ -5,7 +5,9 @@ This file contains the implementation of the different models used in the projec
 """
 
 ###################################################################################################
-# Imports 
+# Imports #########################################################################################
+###################################################################################################
+
 import torch
 import torch.nn as nn
 from nico_net import NicoNet
@@ -48,16 +50,16 @@ class DoubleConv(nn.Module):
         return self.relu(h + residual)
 
 class Down(nn.Module):
-    """Downscaling with maxpool then double conv"""
+    """Double conv"""
 
     def __init__(self, in_channels, out_channels, leaky_relu=False):
         super().__init__()
-        self.maxpool_conv = nn.Sequential(
+        self.conv = nn.Sequential(
             DoubleConv(in_channels, out_channels, leaky_relu=leaky_relu,stride=2)
         )
 
     def forward(self, x):
-        return self.maxpool_conv(x)
+        return self.conv(x)
 
 class Up(nn.Module):
     """Upscaling then double conv"""
@@ -65,10 +67,8 @@ class Up(nn.Module):
     def __init__(self, in_channels, out_channels,  leaky_relu=False,odd = True):
         super().__init__()
 
-        if odd:
-            self.up = nn.ConvTranspose2d(in_channels, in_channels // 2, kernel_size=3, stride=2, padding=1)
-        else:
-            self.up = nn.ConvTranspose2d(in_channels, in_channels // 2, kernel_size=4, stride=2, padding=1)
+        if odd: self.up = nn.ConvTranspose2d(in_channels, in_channels // 2, kernel_size=3, stride=2, padding=1)
+        else: self.up = nn.ConvTranspose2d(in_channels, in_channels // 2, kernel_size=4, stride=2, padding=1)
 
         self.conv = DoubleConv(in_channels, out_channels, leaky_relu=leaky_relu)
 
@@ -78,18 +78,29 @@ class Up(nn.Module):
         return self.conv(x)
 
 
-def get_layers(patch_size, leaky_relu):
-    assert patch_size[0] == patch_size[1], 'Only square patches are supported.'
-    patch_size = patch_size[0]
-    basis = [64, 128, 256, 512, 1024, 2048, 4096]
+def get_layers(patch_size, leaky_relu, basis):
+    """
+    Get the layers for the UNet model.
+
+    Args:
+    - patch_size: list of two integers, the size of the patches.
+    - leaky_relu: bool, whether to use leaky ReLU activation functions.
+    - basis: list of integers, the dimensions for the UNet model.
+
+    Returns:
+    - down_layers: list of Down layers.
+    - up_layers: list of Up layers.
+    """
+
+    lbs, ubs = basis[:-1], basis[1:]
+    assert len(lbs) == len(ubs), 'The number of down and up layers must be the same.'
+    
     down_layers, up_layers = [], []
-    dim = patch_size
-    i = 0
-    while dim > 2:
-        print(f'Down({basis[i]}, {basis[i + 1]})', dim)
+    dim = patch_size[0]
+    for lb, ub in zip(lbs, ubs):
 
-
-        down_layers.append(Down(basis[i], basis[i + 1], leaky_relu))
+        print(f'Down({lb}, {ub})', dim)
+        down_layers.append(Down(lb, ub, leaky_relu))
 
         if dim % 2 == 0:
             odd = False
@@ -97,21 +108,17 @@ def get_layers(patch_size, leaky_relu):
         else:
             odd = True
             dim = (dim // 2) + 1
-        print(dim)
 
-        if basis[i] == 64:
-            up_layers.append(Up(basis[i + 1], basis[i], leaky_relu,odd=odd))
-        else:
-            up_layers.append(Up(basis[i + 1], basis[i], leaky_relu,odd=odd))
-        print(f'Up({basis[i + 1]}, {basis[i]})')
-        i += 1
+        print(f'Up({ub}, {lb})')
+        up_layers.append(Up(ub, lb, leaky_relu, odd = odd))
 
     up_layers.reverse()
     return down_layers, up_layers
 
 
 class UNet(nn.Module):
-    def __init__(self, n_channels, n_classes, patch_size,  leaky_relu=False):
+    
+    def __init__(self, n_channels, n_classes, patch_size, leaky_relu = False):
         """
         A simple UNet implementation.
         """
@@ -119,11 +126,20 @@ class UNet(nn.Module):
         self.n_channels = n_channels
         self.n_classes = n_classes
 
-        self.inc = DoubleConv(n_channels, 64, leaky_relu=leaky_relu)
-        down_layers, uplayers = get_layers(patch_size, leaky_relu)
+        # Set the architecture of the UNet model based on the patch size, such
+        # that the number of parameters is approximately 10M in both cases
+        assert patch_size[0] == patch_size[1], 'Only square patches are supported.'
+        if patch_size[0] == 25 :
+            basis = [64, 128, 256, 512]
+        elif patch_size[0] == 15 :
+            basis = [32, 64, 128, 256, 512]
+        else: raise ValueError('Patch_size should be 15 or 25 for UNet architecture.')
+
+        self.inc = DoubleConv(n_channels, basis[0], leaky_relu = leaky_relu)
+        down_layers, uplayers = get_layers(patch_size, leaky_relu, basis)
         self.down_layers = nn.ModuleList(down_layers)
         self.uplayers = nn.ModuleList(uplayers)
-        self.outc = nn.Conv2d(64, n_classes, kernel_size=1)
+        self.outc = nn.Conv2d(basis[0], n_classes, kernel_size=1)
 
     def forward(self, x):
 
@@ -200,7 +216,8 @@ class Net(nn.Module):
     This class is a wrapper around the different models.
     """
     def __init__(self, model_name, in_features = 4, num_outputs = 1, channel_dims = (16, 32, 64, 128), 
-                 max_pool = False, downsample = None, leaky_relu = False, patch_size = [15, 15]):
+                 max_pool = False, downsample = None, leaky_relu = False, patch_size = [15, 15], 
+                 compile = True, num_sepconv_blocks = 8, num_sepconv_filters = 728, long_skip = False):
         super(Net, self).__init__()
         
         self.model_name = model_name
@@ -210,7 +227,7 @@ class Net(nn.Module):
         if self.model_name == 'fcn' :
             self.model = SimpleFCN(in_features, channel_dims, num_outputs = 1, max_pool = max_pool, 
                                    downsample = downsample)
-        
+
         # UNet
         elif self.model_name == 'unet' :
             self.model = UNet(n_channels = in_features, n_classes = num_outputs, patch_size = patch_size, 
@@ -218,8 +235,15 @@ class Net(nn.Module):
         
         # Nico's model
         elif self.model_name == "nico":
-            self.model = NicoNet(in_features = in_features, num_outputs = num_outputs)
-            
+            if compile: self.model = torch.compile(NicoNet(in_features = in_features, num_outputs = num_outputs, 
+                                        num_sepconv_blocks = num_sepconv_blocks, 
+                                        num_sepconv_filters = num_sepconv_filters, 
+                                        long_skip = long_skip))
+            else: self.model = NicoNet(in_features = in_features, num_outputs = num_outputs, 
+                                        num_sepconv_blocks = num_sepconv_blocks, 
+                                        num_sepconv_filters = num_sepconv_filters, 
+                                        long_skip = long_skip)
+
         else:
             raise NotImplementedError(f'unknown model name {model_name}')
         

@@ -2,6 +2,21 @@
 
 This script defines the training loop for the different models.
 
+Launch the training with any of the /scripts/<architecture>_<patch_size>/<features>.sh files.
+There, you can specify all arguments for the training. Hint: should you want to modify any argument,
+modify /scripts/template.sh and run /scripts/gen_scripts.sh to apply the changes to all possible
+training combinations.
+
+The expected file structure is as follows:
+- the Models/Data/ directory contains the .h5 files with the data, the .pkl file containing the
+  statistics, and the biomes_splits_to_name.pkl file.
+- the Models/cat2vec/ directory contains the cat2vec embeddings (by default, not used).
+
+Basically, all of the necessary data to run this script should be in the Data/ and cat2vec/
+directories, which should be subdirectories of Models/. Should you wish to change the paths, you can
+do so in lines .....
+
+
 """
 
 ###################################################################################################
@@ -43,10 +58,11 @@ def get_progress_bar():
 # Code execution
 
 current_dir = os.getcwd()
-data_dir = os.path.join(current_dir, 'Data')
+data_dir = os.path.join(current_dir, 'Data') # Path to the Data/ directory
 local_dataset_paths = {'h5': data_dir, 
                     'norm': data_dir, 
-                    'map': data_dir}
+                    'map': data_dir,
+                    'embeddings': os.path.join(current_dir, 'cat2vec')}
 
 def main():
     
@@ -64,12 +80,10 @@ def main():
     if (args.dataset_path == 'local') :
         accelerator = 'auto'
         cpus_per_task = 8
-        persistent_workers = True
     else:
         accelerator = 'gpu'
         cpus_per_task = int(os.environ.get('SLURM_CPUS_PER_TASK'))
-        persistent_workers = True
-    if cpus_per_task is None: cpus_per_task = 16
+    if cpus_per_task is None: cpus_per_task = 8
 
     # In the case of RF, the dataset is tabular
     if args.arch == 'rf': 
@@ -82,7 +96,7 @@ def main():
         train_dataset = GEDIDataset(paths = dataset_path, years = args.years, chunk_size = args.chunk_size, mode = "train", args = args, debug = debug)
         val_dataset = GEDIDataset(paths = dataset_path, years = args.years, chunk_size = args.chunk_size, mode = "val", args = args, debug = debug)
         test_dataset = GEDIDataset(paths = dataset_path, years = args.years, chunk_size = args.chunk_size, mode = "test", args = args, debug = debug)
-        train_loader = DataLoader(train_dataset, batch_size = args.batch_size, shuffle = True, num_workers = cpus_per_task, persistent_workers = persistent_workers, pin_memory = True)
+        train_loader = DataLoader(train_dataset, batch_size = args.batch_size, shuffle = True, num_workers = cpus_per_task, persistent_workers = True, pin_memory = True)
         val_loader = DataLoader(val_dataset, batch_size = args.batch_size, shuffle = False, num_workers = cpus_per_task, pin_memory = True)
         test_loader = DataLoader(test_dataset, batch_size = args.batch_size, shuffle = False, num_workers = cpus_per_task, pin_memory = True)
 
@@ -90,11 +104,11 @@ def main():
     model_name = args.model_name.split('/')[-1]
     if model_name == 'local' :
         # if training locally, give a random wandb name
-        wandb_logger = WandbLogger(project = args.arch, log_model = False)
+        wandb_logger = WandbLogger(entity = args.entity, project = args.arch, log_model = False)
         model_name = wandb_logger.experiment.name
     else:
         # if on the cluster, model_name is the JOB ID and MODEL ID in the ensemble
-        wandb_logger = WandbLogger(project = args.arch, name = model_name, log_model = False)
+        wandb_logger = WandbLogger(entity = args.entity, project = args.arch, name = model_name, log_model = False)
 
     # Define the trainer
     trainer = Trainer(max_epochs = args.n_epochs, devices = 1, accelerator = accelerator, logger = wandb_logger, num_sanity_val_steps = 1, val_check_interval = 0.5,
@@ -107,7 +121,8 @@ def main():
     if args.arch in ['fcn', 'unet', 'nico']:
         model = Net(model_name = args.arch, in_features = args.in_features, num_outputs = args.num_outputs, 
                     channel_dims = args.channel_dims, max_pool = args.max_pool, downsample = None,
-                    leaky_relu = args.leaky_relu, patch_size = args.patch_size)
+                    leaky_relu = args.leaky_relu, patch_size = args.patch_size, num_sepconv_blocks = args.num_sepconv_blocks, 
+                    num_sepconv_filters = args.num_sepconv_filters, long_skip = args.long_skip)
 
         # Define the model
         model = Model(model, lr = args.lr, step_size = args.step_size, gamma = args.gamma, 

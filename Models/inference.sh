@@ -10,16 +10,13 @@
 #SBATCH --array=1-1
 
 ##################################################################################################################
-# Define the model to run inference with
+# Define the architecture and models to run inference with
 arch="nico"
-model='60688111-1'
+models=('18693595-3' '18693595-1') # '18693595-5' '18693595-2' '18693595-4')
 
-# For your information, here are the models for which we provide the weigths:
-# Format `arch` `model`
-# nico 60688111-1
-# unet 59641265-1
-# fcn 60310360-1
-# rf morning-deluge-23-1
+# As well as the year for which to run the inference
+# (the least cloudy available product for that year will be selected)
+year=2020
 
 ################################################################################################################################
 # Define the tiles to run inference on
@@ -90,13 +87,13 @@ echo "Launching predictions for tile: " ${tile}
 
 if [[ "$first_part" == "cluster" ]]; then
 
-    python inference.py --model ${model} --arch ${arch} --dataset_path ${TMPDIR} \
-            --saving_dir ${saving_dir} --tile_name $tile
+    python inference.py --models ${models[@]} --arch ${arch} --dataset_path ${TMPDIR} \
+            --saving_dir ${saving_dir} --tile_name $tile --year $year
 
 else
 
-    python inference.py --model ${model} --arch ${arch} --dataset_path local \
-            --saving_dir ${saving_dir} --tile_name $tile
+    python inference.py --models ${models[@]} --arch ${arch} --dataset_path local \
+            --saving_dir ${saving_dir} --tile_name $tile --year $year
 
 fi
 

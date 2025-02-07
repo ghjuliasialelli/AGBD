@@ -9,15 +9,31 @@ import argparse
 
 def str2bool(v):
     """ 
-        Helper function to parse a string into a boolean.
+    Helper function to parse a string into a boolean.
         
-        input: `v` (str), input string to be parsed
-        output: bool
+    Args:
+    - v: string, value to be parsed.
+
+    Returns:
+    - bool
     """
     if v == 'true': return True
     elif v == 'false': return False
     else: raise argparse.ArgumentTypeError(f"Either 'true' or 'false' expected, got {v}.")
 
+def str2intOrnone(v):
+    """
+    Helper function to parse the biome setting. If the biome is set to 'None', returns None. Otherwise, returns the integer value.
+
+    Args:
+    - v: string, value of the biome setting.
+
+    Returns:
+    - int or None
+    """
+    if v == 'None' : return None
+    elif isinstance(v, int) : return v
+    else: raise argparse.ArgumentTypeError(f"Either 'None' or an integer expected, got {v}.")
 
 def setup_parser():
     """ 
@@ -28,10 +44,11 @@ def setup_parser():
 
     parser.add_argument('--model_path', required = True, type = str, help = 'Path to the folder where models should be saved.')
     parser.add_argument('--model_name', required = True, type = str, help = 'Model name, used as the .pth filename to save it.')
+    parser.add_argument('--entity', required = False, type = str, default = 'gs-tp-biomass', help = 'Wandb entity to log the training.')
 
     # Dataset #################################################################################################################################################
     parser.add_argument("--dataset_path", type = str, required = True, help = 'Path to the dataset.')
-    parser.add_argument("--augment", type = str2bool, default = 'true', help = 'Whether to perform data augmentation.')
+    parser.add_argument("--augment", type = str2bool, default = 'false', help = 'Whether to perform data augmentation.')
     parser.add_argument("--norm", type = str2bool, default = 'false', help = 'Whether to normalize the agbd.')
     parser.add_argument("--chunk_size", type = int, default = 1, help = 'Internal chunk size of the hdf5.')
 
@@ -51,27 +68,43 @@ def setup_parser():
     parser.add_argument("--lc", type = str2bool, default = 'false', help = 'Whether to include the LC patches in the input.')
     parser.add_argument("--dem", type = str2bool, default = 'false', help = 'Whether to include the DEM patches in the input.')
     parser.add_argument("--gedi_dates", type = str2bool, default = 'false', help = 'Whether to include the GEDI dates in the input.')
-    parser.add_argument("--s2_dates", type = str2bool, default = 'false', help = 'Whether to include the GEDI dates in the input.')
+    parser.add_argument("--s2_dates", type = str2bool, default = 'false', help = 'Whether to include the S2 date and DOY in the input.')
+    parser.add_argument("--s2_day", type = str2bool, default = 'false', help = 'Whether to include the S2 date in the input.')
+    parser.add_argument("--s2_doy", type = str2bool, default = 'false', help = 'Whether to include the S2 DOY in the input.')
+    parser.add_argument("--topo", type = str2bool, default = 'false', help = 'Whether to include more topological information (slope and aspect).')
+    parser.add_argument("--aspect", type = str2bool, default = 'false', help = 'Whether to include the aspect.')
+    parser.add_argument("--slope", type = str2bool, default = 'false', help = 'Whether to include the slope.')
+    parser.add_argument("--cat2vec", type = str2bool, default = 'false', help = 'Whether to use the cat2vec embeddings for the LC data.')
+    parser.add_argument("--onehot", type = str2bool, default = 'false', help = 'Whether to use the one-hot encoding for the LC data.')
+    parser.add_argument("--dist", type = str2bool, default = 'false', help = "Whether to encode the patch's biomes distribution.")
 
     # outputs 
     parser.add_argument("--num_outputs", required = True, type = int, help = 'Number of features outputed by the model.')
     parser.add_argument("--norm_strat", type = str, required = True, help = 'Normalization strategy, one of `pct`, `min_max` and `mean_std`.')
 
     # Training ################################################################################################################################################
-    
+
+    # for the ensemble of biome specific models
+    parser.add_argument("--biome", type = str2intOrnone, default = 'None', help = 'Whether to train a model for a specific biome.')
+
     # model
     parser.add_argument("--n_epochs", default = 100, type = int, help = 'Number of epochs.')
-    parser.add_argument("--limit", type = str2bool, default = 'true', help = 'Whether to limit the number of batches to process at each epoch.')
+    parser.add_argument("--limit", type = str2bool, default = 'false', help = 'Whether to limit the number of batches to process at each epoch.')
     parser.add_argument("--batch_size", default = 256, type = int, help= 'Batch size.')
     parser.add_argument("--years", type = int, nargs = '+', help = 'Year of the dataset.')
 
     # FCN model arguments
     parser.add_argument("--channel_dims", type = int, nargs = '*', help = 'List of channel feature dimensions.')
-    parser.add_argument("--downsample", type = str2bool, default = 'true', help = 'Whether to downsample the patches from 10m resolution to 50m resolution.')
+    parser.add_argument("--downsample", type = str2bool, default = 'false', help = 'Whether to downsample the patches from 10m resolution to 50m resolution.')
     parser.add_argument("--max_pool", type = str2bool, default = 'false', help = 'Whether to use max pooling after each convolutional layer.')
     
     # UNet model arguments
     parser.add_argument("--leaky_relu", type = str2bool, default = 'false', help = 'Whether to use leaky ReLU activation functions.')
+
+    # Nico model arguments
+    parser.add_argument("--num_sepconv_blocks", type = int, default = 8, help = 'Number of sepconv blocks.')
+    parser.add_argument("--num_sepconv_filters", type = int, default = 728, help = 'Number of sepconv filters.')
+    parser.add_argument("--long_skip", type = str2bool, default = 'false', help = 'Whether to long-skip.')
 
     # optimizer & scheduler
     parser.add_argument("--lr", default = 1e-4, type = float, help = 'Learning rate.')

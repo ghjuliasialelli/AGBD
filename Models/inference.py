@@ -1,9 +1,27 @@
 """
 
-This script performs inference on a Sentinel-2 tile, using a trained model. The model is loaded from the checkpoint
-folder, and the input data is loaded from the patches folder. The predictions are saved in the saving_dir folder.
+This script performs inference on a Sentinel-2 tile. 
 
-Launch the script with `bash inference.sh`.
+Launch the script with `bash inference.sh`, where you can specify the following arguments:
+- arch (str) : the architecture of the model (e.g. 'nico')
+- models (list of str) : the names of the models to use for the prediction
+- year (int) : the year to do inference on
+Should you wish to modify any of the default arguments in inf_parser(), you can set their values in the .sh script.
+
+The expected file structure is as follows:
+- saving_dir (where the prediction .tif file will be saved) : Models/inference/
+- inference_dir (where the input data for the inference is stored) : Models/inference/
+- pretrained_weights (where the model weights are stored) : Models/pretrained_weights/
+Basically, all of the necessary data to run this script is in the inference/ and pretrained_weights/ directory, which
+should be sub-directories of Models/. Should you wish to change the paths, you can do so in lines .....
+
+Behavior:
+- when inference is performed using a single model, a sliding window (of width/height patch_size, and stride overlap_size)
+  splits the Sentinel-2 tile into subpatches, and the model predicts the AGBD of each subpatch. The overlapping areas of
+  the subpatches are *not* averaged to get the final prediction, but rather the prediction of the last subpatch is kept.
+  This is done to prevent boundary effects.
+- when inference is performed using multiple models, we take the same approach for each model, and the final prediction
+  is the mean across all models. The standard deviation of the predictions is also computed.
 
 """
 
@@ -25,6 +43,7 @@ from inference_helper import *
 from dataset import normalize_bands, normalize_data, encode_lc
 import warnings
 from os import getcwd
+from parser import str2bool
 
 # Silencing specific warnings
 warnings.filterwarnings("ignore", category=RuntimeWarning, message="Mean of empty slice")
@@ -41,109 +60,113 @@ def inf_parser():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_path', type = str, required = True, help = 'Path to the dataset')
-    parser.add_argument('--model', type = str, required = True, help = 'Model names')
+    parser.add_argument('--year', type = int, required = True, help = 'Year to do inference on.')
+    parser.add_argument('--models', type = str, nargs = '+', required = True, help = 'Model names')
     parser.add_argument('--arch', type = str, required = True, help = 'Architecture of the model')
     parser.add_argument('--saving_dir', type = str, help = 'Directory in which to save the plots.')
     parser.add_argument("--tile_name", required = True, type = str, help = 'Tile on which to run the prediction.')
     parser.add_argument("--dw", action = 'store_true', help = 'Downsample the preds to 50m resolution.')
     parser.add_argument("--patch_size", nargs = 2, type = int, default = [200,200], help = 'Size (height,width) of the patches.')
     parser.add_argument("--overlap_size", nargs = 2, type = int, default = [100,100], help = 'Size (height,width) of the patches.')
+    parser.add_argument("--masking", type = str2bool, default = 'false', help = 'Whether to mask the input.')
     args = parser.parse_args()
 
-    return args, args.dataset_path, args.model, args.arch, args.saving_dir, args.tile_name, args.dw, args.patch_size, args.overlap_size
+    return args, args.dataset_path, args.models, args.arch, args.saving_dir, args.tile_name, args.dw, args.patch_size, args.overlap_size, args.masking, args.year
 
 
-def load_input(paths, tile_name, norm_values, cfg, alos_order = ['HH', 'HV']):
+def load_input(year, paths, tile_name, norm_values, cfg, alos_order = ['HH', 'HV']):
     """ 
-    Load the input data for the inference. 
+    Reads the input tile specified in tile_name, as well as the corresponding encoded geographical coordinates,
+    and normalize the input.
 
     Args:
+    - year (int) : the year to do inference on
     - paths (dict) : dictionary with keys `norm`, `tiles`, and `ckpt` and with values
         the paths to the corresponding file/folder
-    - tile_name (str) : the name of the Sentinel-2 tile to perform inference on
-    - norm_values (dict) : dictionary with the normalization values for the different bands
+    - tile_name (str) : the name of the Sentinel-2 tile to load
+    - norm_values (dict) : dictionary with the normalization values
     - cfg (dict) : dictionary with the configuration of the model
-    - alos_order (list) : list with the order of the ALOS bands
-
-    Returns:
-    - data (torch.Tensor) : the input data for the model
-    - mask (np.array) : the mask of the input data
-    - meta (dict) : the metadata of the input data
+    - alos_order (list) : the order of the ALOS bands
     """
-    
-    start_time = time.time()
-    print('Loading input...')
 
-
+    # Initialize the data
     data = []
 
     # Sentinel 2 bands -------------------------------------------------------------------------------------------
-    # 1. Get the product
-    with open(join(paths['tiles'], 'mapping.pkl'), 'rb') as f: least_cloudy_products = pickle.load(f)
-    s2_prod = least_cloudy_products[tile_name]
-    year = s2_prod.split('_')[2][:4]
-    # 2. Process the product
-    transform, upsampling_shape, s2_bands, crs, bounds, boa_offset, lat_cos, lat_sin, lon_cos, lon_sin, meta = process_S2_tile(s2_prod, paths['tiles'])
-    scl_band = s2_bands.pop('SCL')
-    # 3. Get the SR values for the optical bands
-    for band, band_value in s2_bands.items() :
-        s2_bands[band] = (band_value - boa_offset * 1000) / 10000
-    # 4. Normalize the data
-    s2_order = cfg['bands']
-    s2_bands = np.moveaxis(np.array([s2_bands[band] for band in s2_order]), 0, -1)
-    s2_bands = normalize_bands(s2_bands, norm_values['S2_bands'], s2_order, cfg['norm_strat'], NODATAVALS['S2'])
+    if cfg['bands'] != [] :
     
-    # Get the ALOS data ------------------------------------------------------------------------------------------
-    # 1. Get the data
-    alos_raw = load_ALOS_data(tile_name, paths['alos'], year)
-    alos_tile = get_tile(alos_raw, transform, upsampling_shape, 'ALOS', ALOS_attrs)
-    alos_bands = np.moveaxis(np.array([alos_tile['HH'], alos_tile['HV']]), 0, -1)
-    # 2. Get the gamma naught values
-    alos_bands = np.where(alos_bands == NODATAVALS['ALOS'], -9999.0, 10 * np.log10(np.power(alos_bands.astype(np.float32), 2)) - 83.0)
-    # 3. Normalize the data
-    alos_bands = normalize_bands(alos_bands, norm_values['ALOS_bands'], alos_order, cfg['norm_strat'], -9999.0)
+        # 1. Get the product
+        with open(join(paths['tiles'], 'mapping_2019-2020.pkl'), 'rb') as f: least_cloudy_products = pickle.load(f)
+        s2_prod = least_cloudy_products[year][tile_name]
+        year = s2_prod.split('_')[2][:4]
+        
+        # 2. Process the product
+        transform, upsampling_shape, s2_bands, crs, bounds, boa_offset, lat_cos, lat_sin, lon_cos, lon_sin, meta = process_S2_tile(s2_prod, paths['tiles'])
+        scl_band = s2_bands.pop('SCL')
+        
+        # 3. Get the SR values for the optical bands
+        for band, band_value in s2_bands.items() :
+            s2_bands[band] = (band_value - boa_offset * 1000) / 10000
+        
+        # 4. Normalize the data
+        s2_order = cfg['bands']
+        s2_bands = np.moveaxis(np.array([s2_bands[band] for band in s2_order]), 0, -1)
+        s2_bands = normalize_bands(s2_bands, norm_values['S2_bands'], s2_order, cfg['norm_strat'], NODATAVALS['S2'])
 
-    # Get the CH data and latitude / longitude -------------------------------------------------------------------
-    # 1. Get the data
-    ch_bands = load_CH_data(paths['ch'], tile_name, year)
-    ch, ch_std = ch_bands['ch'], ch_bands['std']
-    # 2. Normalize the data
-    ch = normalize_data(ch, norm_values['CH']['ch'], cfg['norm_strat'], NODATAVALS['CH'])
-    ch_std = normalize_data(ch_std, norm_values['CH']['std'], cfg['norm_strat'], NODATAVALS['CH'])
-    
-    # Get the LC data --------------------------------------------------------------------------------------------
-    # 1. Get the data
-    lc_raw = load_LC_data(paths['lc'], tile_name)
-    lc_tile = get_tile(lc_raw, transform, upsampling_shape, 'LC', LC_attrs)
-    lc = np.moveaxis(np.array([lc_tile['lc'], lc_tile['prob']]), 0, -1)
-    # 2. Transform the data
-    lc_cos, lc_sin, lc_prob = encode_lc(lc)
+        data.extend([s2_bands])
 
-    # Get the DEM data -------------------------------------------------------------------------------------------
-    # 1. Get the data
-    dem_raw = load_DEM_data(paths['dem'], tile_name)
-    dem_tile = get_tile(dem_raw, transform, upsampling_shape, 'DEM', DEM_attrs)
-    dem = dem_tile['dem']
-    # 2. Normalize the data
-    dem = normalize_data(dem, norm_values['DEM'], cfg['norm_strat'], NODATAVALS['DEM'])
-
-    # Add all of the data in the correct order -------------------------------------------------------------------
-    if cfg['bands'] != [] : data.extend([s2_bands])
+    # Get the geographical coordinates ----------------------------------------------------------------------------
     if cfg['latlon']: data.extend([lat_cos[..., np.newaxis], lat_sin[..., np.newaxis], lon_cos[..., np.newaxis], lon_sin[..., np.newaxis]])
     else: data.extend([lat_cos[..., np.newaxis], lat_sin[..., np.newaxis]])
-    if cfg['alos'] : data.extend([alos_bands])
-    if cfg['ch'] : data.extend([ch[..., np.newaxis], ch_std[..., np.newaxis]])
-    if cfg['lc'] : data.extend([lc_cos[..., np.newaxis], lc_sin[..., np.newaxis], lc_prob[..., np.newaxis]])
-    if cfg['dem'] : data.extend([dem[..., np.newaxis]])
+
+    # Get the ALOS data ------------------------------------------------------------------------------------------
+    if cfg.get('alos', False) :
+        # 1. Get the data
+        alos_raw = load_ALOS_data(tile_name, paths['alos'], year)
+        alos_tile = get_tile(alos_raw, transform, upsampling_shape, 'ALOS', ALOS_attrs)
+        alos_bands = np.moveaxis(np.array([alos_tile['HH'], alos_tile['HV']]), 0, -1)
+        # 2. Get the gamma naught values
+        alos_bands = np.where(alos_bands == NODATAVALS['ALOS'], -9999.0, 10 * np.log10(np.power(alos_bands.astype(np.float32), 2)) - 83.0)
+        # 3. Normalize the data
+        alos_bands = normalize_bands(alos_bands, norm_values['ALOS_bands'], alos_order, cfg['norm_strat'], -9999.0)
+        data.extend([alos_bands])
+
+    # Get the CH data --------------------------------------------------------------------------------------------
+    if cfg.get('ch', False) :
+        # 1. Get the data
+        ch_bands = load_CH_data(paths['ch'], tile_name, year)
+        ch, ch_std = ch_bands['ch'], ch_bands['std']
+        # 2. Normalize the data
+        ch = normalize_data(ch, norm_values['CH']['ch'], cfg['norm_strat'], NODATAVALS['CH'])
+        ch_std = normalize_data(ch_std, norm_values['CH']['std'], cfg['norm_strat'], NODATAVALS['CH'])
+        data.extend([ch[..., np.newaxis], ch_std[..., np.newaxis]])
+
+    # Get the LC data --------------------------------------------------------------------------------------------
+    if cfg.get('lc', False) :
+        # 1. Get the data
+        lc_raw = load_LC_data(paths['lc'], tile_name)
+        lc_tile = get_tile(lc_raw, transform, upsampling_shape, 'LC', LC_attrs)
+        lc = np.moveaxis(np.array([lc_tile['lc'], lc_tile['prob']]), 0, -1)
+        # 2. Transform the data
+        lc_cos, lc_sin, lc_prob = encode_lc(lc)
+        data.extend([lc_cos[..., np.newaxis], lc_sin[..., np.newaxis], lc_prob[..., np.newaxis]])
+
+    # Get the DEM data -------------------------------------------------------------------------------------------
+    if cfg.get('dem', False) :
+        # 1. Get the data
+        dem_raw = load_DEM_data(paths['dem'], tile_name)
+        dem_tile = get_tile(dem_raw, transform, upsampling_shape, 'DEM', DEM_attrs)
+        dem = dem_tile['dem']
+        # 2. Normalize the data
+        dem = normalize_data(dem, norm_values['DEM'], cfg['norm_strat'], NODATAVALS['DEM'])
+        data.extend([dem[..., np.newaxis]])
+
+    # Concatenate the data ---------------------------------------------------------------------------------------
     data = torch.from_numpy(np.concatenate(data, axis = -1)).to(torch.float)
     
     # Get the mask ------------------------------------------------------------------------------------------------
     # i.e. where it is Water (6) and Snow or ice (11)
     mask = (scl_band == 6) | (scl_band == 11)
-
-    print('done!')
-    end_time = time.time()
-    print(f'Loading input took {end_time - start_time} seconds.')
 
     return data, mask, meta
 
@@ -166,16 +189,19 @@ def predict_patch(model, patch, device):
     return preds[0, 0, :, :]
 
 
-def predict_tile(img, size, model, patch_size, overlap_size, device):
+def predict_tile(img, size, models, patch_size, overlap_size, device):
     """
     Predict the AGBD of a Sentinel-2 tile using the model. We split the ~ 100km x 100km tile into patches of size
-    `patch_size`, with overlap by `overlap_size`. Best practices: . choose patch_size such that patch_size / 5 is
-    an integer; . choose overlap_size such that overlap_size / 2 is an integer.
+    `patch_size`, with overlap by `overlap_size`. 
+    
+    Best practices: 
+    . choose patch_size such that patch_size / 5 is an integer (by default, patch_size=200)
+    . choose overlap_size such that overlap_size / 2 is an integer (by default, overlap_size=100)
 
     Args:
     - img (np.array) : the Sentinel-2 tile to predict on
     - size (int) : the size of the Sentinel-2 tile
-    - model (torch.nn.Module) : the model to use for the prediction
+    - models (list) : the models to use for the prediction
     - patch_size (tuple) : the size of the patches to use for the prediction
     - overlap_size (tuple) : the size of the overlap between the patches
     - device (torch.device) : the device to use for the prediction
@@ -215,9 +241,9 @@ def predict_tile(img, size, model, patch_size, overlap_size, device):
     # Step in the width/height dimension: width/height of the prediction patch minus width/height of the prediction overlap
     pred_step_width, pred_step_height = pred_patch_width - pred_overlap_width, pred_patch_height - pred_overlap_height
     
-    
     # Place-holder for the put-together predictions
-    predictions = np.zeros((pred_height, pred_width), dtype = np.float32)
+    num_dims = len(models)
+    predictions = np.full(shape = (num_dims, pred_height, pred_width), fill_value = np.nan)
 
     # Actual prediction ###########################################################################################
 
@@ -229,21 +255,26 @@ def predict_tile(img, size, model, patch_size, overlap_size, device):
         for j, j_p in zip(range(0, img_width - patch_width + 1, step_width), range(0, pred_width - pred_patch_width + 1, pred_step_width)) :
             off_w = 0 if j_p == 0 else overlap_width // (2 * dw_factor) # to limit border-effect
             patch = img[i : i + patch_height, j : j + patch_width, :]
-            predictions[i_p + off_h : i_p + pred_patch_height, j_p + off_w : j_p + pred_patch_width] = predict_patch(model, patch, device)[off_h : , off_w :]
+            for dim, model in enumerate(models) :
+                predictions[dim, i_p + off_h : i_p + pred_patch_height, j_p + off_w : j_p + pred_patch_width] = predict_patch(model, patch, device)[off_h : , off_w :]
         # Last column, if patches don't equally fit in the image
         if overload_width :
             patch = img[i : i + patch_height, - patch_width : , :]
-            predictions[i_p + off_h : i_p + pred_patch_height, - pred_patch_width + off_w : ] = predict_patch(model, patch, device)[off_h : , off_w :]
+            for dim, model in enumerate(models) :
+                predictions[dim, i_p + off_h : i_p + pred_patch_height, - pred_patch_width + off_w : ] = predict_patch(model, patch, device)[off_h : , off_w :]
     # Last row, if patches don't equally fit in the image
     if overload_height :
         for j, j_p in zip(range(0, img_width - patch_width + 1, step_width), range(0, pred_width - pred_patch_width + 1, pred_step_width)) :
+            off_w = 0 if j_p == 0 else overlap_width // (2 * dw_factor) # to limit border-effect
             patch = img[ - patch_height : , j : j + patch_width, :]
-            predictions[- pred_patch_height + off_h : , j_p + off_w : j_p + pred_patch_width] = predict_patch(model, patch, device)[off_h : , off_w :]
+            for dim, model in enumerate(models) :
+                predictions[dim, - pred_patch_height + off_h : , j_p + off_w : j_p + pred_patch_width] = predict_patch(model, patch, device)[off_h : , off_w :]
+        # Last column, if patches don't equally fit in the image
+        if overload_width :
+            patch = img[ - patch_height : , - patch_width : , :]
+            for dim, model in enumerate(models) :
+                predictions[dim, - pred_patch_height + off_h : , - pred_patch_width + off_w : ] = predict_patch(model, patch, device)[off_h : , off_w :]
     
-    # Divide by the number of times a value was in an overlap to get the mean
-    print('done!')
-    end_time = time.time()
-    print(f'Actual tile prediction took {end_time - start_time} seconds.')
     return predictions
 
 
@@ -278,7 +309,7 @@ class Inference:
         self.device = device   
         self.load_model()
     
-    def load_model(self):  # sourcery skip: raise-specific-error
+    def load_model(self):
 
         """ 
         Loads the model, setting self.model
@@ -315,7 +346,7 @@ def run_inference():
     """
     
     # Get the command line arguments and set the global variables
-    args, dataset_path, model, arch, saving_dir, tile_name, dw, patch_size, overlap_size = inf_parser()
+    args, dataset_path, models, arch, saving_dir, tile_name, dw, patch_size, overlap_size, masking, year = inf_parser()
 
     # Settings
     set_float32_matmul_precision('high')
@@ -335,28 +366,34 @@ def run_inference():
                            'dem': inference_dir,
                            'lc': inference_dir,
                            }
-    else: 
+    else:
         raise NotImplementedError('Specify your own paths.')
     dataset_path['saving_dir'] = saving_dir
 
     # We get the config for one of the models
-    with open(join(dataset_path['ckpt'], arch, f'{model}_cfg.pkl'), 'rb') as f:
+    with open(join(dataset_path['ckpt'], arch, f'{models[0]}_cfg.pkl'), 'rb') as f:
         cfg = pickle.load(f)
     for key, value in cfg.items(): setattr(args, key, value)
 
     # Load the input
-    with open(os.path.join(dataset_path['norm'], 'statistics_subset_2019-2020-v4.pkl'), mode = 'rb') as f: norm_values = pickle.load(f)
-    img, mask, meta = load_input(dataset_path, tile_name, norm_values, cfg)
+    with open(os.path.join(dataset_path['norm'], 'statistics_subset_2019-2020-v4_new.pkl'), mode = 'rb') as f: norm_values = pickle.load(f)
+    img, mask, meta = load_input(year, dataset_path, tile_name, norm_values, cfg)
     size = 3 if cfg['downsample'] else 15
     pred_mask = rescale(mask, size / 15)
 
     # Load the models
-    inference_object = Inference(arch = arch, model_name = model, paths = dataset_path, tile_name = tile_name, args = args, device = device)
-    inf_model = inference_object.model
+    inference_objects = [Inference(arch = arch, model_name = model_name, paths = dataset_path, tile_name = tile_name, args = args, device = device) for model_name in models]
+    inf_models = [inference_object.model for inference_object in inference_objects]
 
     # Get the predictions
-    predictions = predict_tile(img, size, inf_model, patch_size, overlap_size, device)
-    predictions[pred_mask] = np.nan
+    predictions = predict_tile(img, size, inf_models, patch_size, overlap_size, device)
+    if len(models) > 1 : std_predictions = np.nanstd(predictions, axis = 0)
+    predictions = np.nanmean(predictions, axis = 0)
+
+    # Mask out the predictions where the input data is invalid
+    if masking: 
+        predictions[pred_mask] = np.nan
+        if len(models) > 1 : std_predictions[pred_mask] = np.nan
 
     # Cast negative AGB values to 0, and all values to uint16
     predictions[predictions < 0] = 0
@@ -365,11 +402,23 @@ def run_inference():
     predictions[np.isnan(predictions)] = 65535
     predictions = predictions.astype(np.uint16)
 
+    # Do the same for the standard deviation
+    if len(models) > 1 :
+        std_predictions[std_predictions < 0] = 0
+        std_predictions[std_predictions > 65535] = 65535
+        std_predictions[np.isinf(std_predictions)] = 65535
+        std_predictions[np.isnan(std_predictions)] = 65535
+        std_predictions = std_predictions.astype(np.uint16)
+
     # Save the AGB predictions to a GeoTIFF, with dtype uint16
-    meta.update(driver = 'GTiff', dtype = np.uint16, count = 1, compress = 'lzw', nodata = 65535)
-    print(f'Saving predictions to {os.path.join(dataset_path["saving_dir"], f"{arch}_{tile_name}_<agb/std>.tif")}')
-    with rs.open(os.path.join(dataset_path["saving_dir"], f'{arch}_{tile_name}_agb.tif'), 'w', **meta) as f:
+    meta.update(driver = 'GTiff', dtype = np.uint16, count = 2 if len(models) > 1 else 1, compress = 'lzw', nodata = 65535)
+    print(f'Saving predictions to {os.path.join(dataset_path["saving_dir"], f"{arch}_{tile_name}_{year}.tif")}')
+    with rs.open(os.path.join(dataset_path["saving_dir"], f'{arch}_{tile_name}_{year}_try6.tif'), 'w', **meta) as f:
         f.write(predictions, 1)
+        f.set_band_description(1, 'AGB')
+        if len(models) > 1:
+            f.write(std_predictions, 2)
+            f.set_band_description(2, 'STD')
 
 if __name__ == '__main__': 
     run_inference()

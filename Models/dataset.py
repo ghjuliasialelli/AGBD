@@ -5,20 +5,26 @@ This script defines the dataset class for the GEDI dataset.
 """
 
 ############################################################################################################################
-# Imports
+# IMPORTS
 
 import h5py
 import torch
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader
 import numpy as np
 from os.path import join
 import pickle
 from os.path import join, exists
 from datetime import datetime, timedelta
+import argparse
 np.seterr(divide = 'ignore') 
+import tqdm
+import pandas as pd
 
 # Define the nodata values for each data source
 NODATAVALS = {'S2_bands' : 0, 'CH': 255, 'ALOS_bands': 0, 'DEM': -9999, 'LC': 255}
+
+# Define the biomes
+REF_BIOMES = {20: 'Shrubs', 30: 'Herbaceous vegetation', 40: 'Cultivated', 90: 'Herbaceous wetland', 111: 'Closed-ENL', 112: 'Closed-EBL', 114: 'Closed-DBL', 115: 'Closed-mixed', 116: 'Closed-other', 121: 'Open-ENL', 122: 'Open-EBL', 124: 'Open-DBL', 125: 'Open-mixed', 126: 'Open-other'}
 
 ############################################################################################################################
 # Helper functions
@@ -34,7 +40,6 @@ def initialize_index(fnames, mode, chunk_size, path_mapping, path_h5) :
     - mode (str): the mode of the dataset (train, val, test)
     - chunk_size (int): the size of the chunks
     - path_mapping (str): the path to the file mapping each mode to its tiles
-    - path_h5 (str): the path to the h5 files
 
     Returns:
     - idx (dict): dictionary mapping the file names to the tiles and the tiles to the chunks
@@ -76,7 +81,6 @@ def find_index_for_chunk(index, n, total_length):
     Args:
     - index (dict): dictionary mapping the files to the tiles and the tiles to the chunks
     - n (int): the n-th chunk
-    - total_length (int): the total number of chunks in the dataset
 
     Returns:
     - file_name (str): the name of the file
@@ -147,9 +151,12 @@ def encode_coords(central_lat, central_lon, patch_size, resolution = 10) :
     offset_lon = (j_indices - patch_size[1] // 2) * resolution
 
     # Calculate the latitude and longitude for each pixel
+    # cf. https://stackoverflow.com/questions/7477003/calculating-new-longitude-latitude-from-old-n-meters 
+    # the volumetric mean radius of the Earth is 6371km, cf. https://nssdc.gsfc.nasa.gov/planetary/factsheet/earthfact.html 
     latitudes = central_lat + (offset_lat / 6371000) * (180 / np.pi)
-    longitudes = central_lon + (offset_lon / 6371000) * (180 / np.pi) / np.cos(central_lat * np.pi / 180)
+    longitudes = central_lon + (offset_lon / 6371000) * (180 / np.pi) / np.cos(latitudes * np.pi / 180)
 
+    # Encode the latitude and longitude
     lat_cos, lat_sin, lon_cos, lon_sin = encode_lat_lon(latitudes, longitudes)
 
     return lat_cos, lat_sin, lon_cos, lon_sin
@@ -162,7 +169,6 @@ def get_doy(num_days, patch_size, GEDI_START_MISSION = '2019-04-17') :
 
     Args:
     - num_days (int): the number of days before/since the start of the GEDI mission
-    - patch_size (tuple): the size of the patch
     - GEDI_START_MISSION (str): the start date of the GEDI mission
 
     Returns:
@@ -172,7 +178,7 @@ def get_doy(num_days, patch_size, GEDI_START_MISSION = '2019-04-17') :
     # Get the date of acquisition and day of year
     start_date = datetime.strptime(GEDI_START_MISSION, '%Y-%m-%d')
     target_date = start_date + timedelta(days = int(num_days))
-    doy = target_date.timetuple().tm_yday
+    doy = target_date.timetuple().tm_yday - 1 # range [1, 366]
 
     # Get the doy_cos and doy_sin
     doy_cos = np.cos(2 * np.pi * doy / 365)
@@ -182,6 +188,45 @@ def get_doy(num_days, patch_size, GEDI_START_MISSION = '2019-04-17') :
     doy_cos, doy_sin = (doy_cos + 1) / 2, (doy_sin + 1) / 2
 
     return np.full((patch_size[0], patch_size[1]), doy_cos), np.full((patch_size[0], patch_size[1]), doy_sin)
+
+
+def func_slope(px, py) :
+    return np.sqrt(px ** 2 + py ** 2)
+
+def func_aspect(px, py) :
+    aspect = np.pi / 2 - np.arctan2(py, px)
+    return np.where(aspect < 0, aspect + 2 * np.pi, aspect)
+
+def get_topology(dem) :
+    """
+    This function computes the slope and aspect of the DEM.
+    
+    Resources: 
+    . https://www.spatialanalysisonline.com/HTML/gradient__slope_and_aspect.htm
+    . https://gis.stackexchange.com/questions/361837/calculating-slope-of-numpy-array-using-gdal-demprocessing
+    . https://math.stackexchange.com/a/3923660
+
+    Args:
+    - dem (np.array, shape batch_size, patch_size, patch_size): the DEM
+
+    Returns:
+    - slope (np.array): the slope of the DEM
+    - aspect_cos (np.array): the cosine of the aspect of the DEM
+    - aspect_sin (np.array): the sine of the aspect of the DEM
+    """
+
+    # Get the partial derivatives
+    px, py = np.gradient(dem, 10,)
+    # Get the slope, in [0,1]
+    slope = np.sqrt(px ** 2 + py ** 2)
+    # Get the aspect, in [0,2pi]
+    aspect = np.pi / 2 - np.arctan2(py, px)
+    aspect = np.where(aspect < 0, aspect + 2 * np.pi, aspect)
+    # Encode and scale the aspect, in [0,1]
+    aspect_cos = (np.cos(aspect) + 1) / 2
+    aspect_sin = (np.sin(aspect) + 1) / 2
+    
+    return slope, aspect_cos, aspect_sin
 
 
 def normalize_data(data, norm_values, norm_strat, nodata_value = None) :
@@ -195,7 +240,6 @@ def normalize_data(data, norm_values, norm_strat, nodata_value = None) :
     - data (np.array): the data to normalize
     - norm_values (dict): the normalization values
     - norm_strat (str): the normalization strategy
-    - nodata_value (int/float): the nodata value
 
     Returns:
     - normalized_data (np.array): the normalized data
@@ -252,13 +296,15 @@ def normalize_bands(bands_data, norm_values, order, norm_strat, nodata_value = N
 
 def encode_lc(lc_data) :
     """
-    This function encodes the land cover data into sin/cosine values and scales the class probabilities to [0,1].
+    Encode the land cover classes into sin/cosine values and scale the class probabilities to [0,1].
 
     Args:
     - lc_data (np.array): the land cover data
 
     Returns:
-    - (lc_cos, lc_sin, lc_prob) (tuple): the sin/cosine values for the land cover classes and the class probabilities
+    - lc_cos (np.array): the cosine values of the land cover classes
+    - lc_sin (np.array): the sine values of the land cover classes
+    - lc_prob (np.array): the land cover class probabilities
     """
 
     # Get the land cover classes
@@ -275,12 +321,76 @@ def encode_lc(lc_data) :
     return lc_cos, lc_sin, lc_prob
 
 
+def embed_lc(lc_data, embeddings) :
+    """
+    Embed the land cover classes using the cat2vec embeddings.
+
+    Args:
+    - lc_data (np.array): the land cover data
+    - embeddings (dict): the cat2vec embeddings
+
+    Returns:
+    - lc_map (np.array): the embedded land cover classes
+    - lc_prob (np.array): the land cover class probabilities
+    """
+
+    # Get the land cover classes
+    lc_map = lc_data[:, :, 0]
+    lc_map = np.vectorize(lambda x: embeddings.get(x, embeddings.get(0)), signature = '()->(n)')(lc_map)
+
+    # Scale the class probabilities to [0,1]
+    lc_prob = lc_data[:, :, 1]
+    lc_prob = np.where(lc_prob == NODATAVALS['LC'], 0, lc_prob / 100)
+
+    return lc_map, lc_prob
+
+
+_biome_values_mapping = {v: i for i, v in enumerate(REF_BIOMES.keys())}
+def onehot_lc(lc_data) :
+    """
+    Encode the land cover classes using one-hot encoding.
+
+    Args:
+    - lc_data (np.array): the land cover data
+
+    Returns:
+    - lc_map (np.array): the one-hot encoded land cover classes
+    """
+    # Number of classes
+    num_classes = len(_biome_values_mapping)
+    # Actually perform the one-hot encoding
+    def one_hot(x) :
+        one_hot = np.zeros(num_classes)
+        one_hot[_biome_values_mapping.get(x, 0)] = 1
+        return one_hot
+    one_hot_data = np.vectorize(one_hot, signature = '() -> (n)')(lc_data).astype(np.float32)
+    return one_hot_data
+
+
+_ref_biome_values = [v for v in REF_BIOMES.keys()]
+def biome_distribution(patch_lc) :
+    """
+    This function computes the distribution of biomes in a patch.
+
+    Args:
+    - patch_lc (np.array): the land cover classes in the patch, of size (patch_size, patch_size)
+
+    Returns:
+    - biome_emb (np.array): the biome distribution, of size (num_classes,)
+    """
+    # Number of pixels in the patch
+    num_pixels = patch_lc.size
+    # Percentage of each biome in the patch
+    counts = {value: np.count_nonzero(patch_lc == value) / num_pixels for value in _ref_biome_values}
+    return np.array(list(counts.values())).astype(np.float32)
+
+
 class GEDIDataset(Dataset):
 
     def __init__(self, paths, years, chunk_size, mode, args, version = 4, debug = False):
 
         # Get the parameters
-        self.h5_path, self.norm_path, self.mapping = paths['h5'], paths['norm'], paths['map']
+        self.h5_path, self.norm_path, self.mapping, self.embed_path = paths['h5'], paths['norm'], paths['map'], paths['embeddings']
         self.mode = mode
         self.chunk_size = chunk_size
         self.years = years
@@ -301,9 +411,17 @@ class GEDIDataset(Dataset):
         self.s1 = args.s1
         self.alos = args.alos
         self.lc = args.lc
+        self.cat2vec = args.cat2vec
+        self.onehot = args.onehot
+        self.dist = args.dist
         self.dem = args.dem
         self.gedi_dates = args.gedi_dates
         self.s2_dates = args.s2_dates
+        self.s2_day = args.s2_day
+        self.s2_doy = args.s2_doy
+        self.topo = args.topo
+        self.aspect = args.aspect
+        self.slope = args.slope
         self.patch_size = args.patch_size
 
         # Define the learning procedure
@@ -314,9 +432,9 @@ class GEDIDataset(Dataset):
         assert self.mode in ['train', 'val', 'test'], "The mode must be one of 'train', 'val', 'test'"
 
         # Load the normalization values
-        if not exists(join(self.norm_path, f'statistics_subset_2019-2020-v{version}.pkl')):
-            raise FileNotFoundError(f'The file `statistics_subset_2019-2020-v{version}.pkl` does not exist.')
-        with open(join(self.norm_path, f'statistics_subset_2019-2020-v{version}.pkl'), mode = 'rb') as f:
+        if not exists(join(self.norm_path, f"statistics_subset_2019-2020-v{version}_new.pkl")):
+            raise FileNotFoundError(f"The file `statistics_subset_2019-2020-v{version}_new.pkl` does not exist.")
+        with open(join(self.norm_path, f"statistics_subset_2019-2020-v{version}_new.pkl"), mode = 'rb') as f:
             self.norm_values = pickle.load(f)
 
         # Open the file handles
@@ -326,7 +444,12 @@ class GEDIDataset(Dataset):
         assert self.patch_size[0] == self.patch_size[1], "The patch size must be square"
         self.center = 12 # because the patch size is 25x25 in the .h5 files
         self.window_size = self.patch_size[0] // 2
-        
+
+        # Get the cat2vec LC embeddings
+        if self.lc and self.cat2vec :
+            embeddings = pd.read_csv(join(self.embed_path, "embeddings_train.csv"))
+            embeddings = dict([(v,np.array([a,b,c,d,e])) for v, a,b,c,d,e in zip(embeddings.mapping, embeddings.dim0, embeddings.dim1, embeddings.dim2, embeddings.dim3, embeddings.dim4)])
+            self.embeddings = embeddings
 
     def __len__(self):
         return self.length
@@ -340,7 +463,7 @@ class GEDIDataset(Dataset):
         f = self.handles[file_name]
 
         # Set the order and indices for the Sentinel-2 bands
-        if not hasattr(self, 's2_indices') : self.s2_order = list(f[tile_name]['S2_bands'].attrs['order'])
+        if not hasattr(self, 's2_order') : self.s2_order = list(f[tile_name]['S2_bands'].attrs['order'])
         if not hasattr(self, 's2_indices') : self.s2_indices = [self.s2_order.index(band) for band in self.bands]
 
         # Set the order for the Sentinel-1 bands
@@ -349,7 +472,7 @@ class GEDIDataset(Dataset):
         # Set the order for the ALOS bands
         if self.alos and not hasattr(self, 'alos_order') : self.alos_order = f[tile_name]['ALOS_bands'].attrs['order']
 
-
+        # Initialize the data list
         data = []
 
         # Sentinel-2 bands
@@ -372,17 +495,19 @@ class GEDIDataset(Dataset):
             # Normalize the bands
             s2_bands = normalize_bands(s2_bands, self.norm_values['S2_bands'], self.s2_order, self.norm_strat, NODATAVALS['S2_bands'])
             s2_bands = s2_bands[:, :, self.s2_indices]
-            
-            s2_num_days = f[tile_name]['Sentinel_metadata']['S2_date'][idx]
-            s2_doy_cos, s2_doy_sin = get_doy(s2_num_days, self.patch_size)
-            s2_num_days = np.full((self.patch_size[0], self.patch_size[1]), s2_num_days).astype(np.float32)
-            s2_num_days = normalize_data(s2_num_days, self.norm_values['Sentinel_metadata']['S2_date'], 'min_max')
-
             data.extend([s2_bands])
             
-            if self.s2_dates : data.extend([s2_num_days[..., np.newaxis], s2_doy_cos[..., np.newaxis], s2_doy_sin[..., np.newaxis]])
+            # Sentinel-2 date
+            s2_num_days = f[tile_name]['Sentinel_metadata']['S2_date'][idx]
+            if self.s2_dates : 
+                s2_doy_cos, s2_doy_sin = get_doy(s2_num_days, self.patch_size)
+                s2_num_days = np.full((self.patch_size[0], self.patch_size[1]), s2_num_days).astype(np.float32)
+                s2_num_days = normalize_data(s2_num_days, self.norm_values['Sentinel_metadata']['S2_date'], 'min_max' if self.norm_strat == 'pct' else self.norm_strat)
+                if self.s2_day:
+                    data.extend([s2_num_days[..., np.newaxis]])
+                if self.s2_doy:
+                    data.extend([s2_doy_cos[..., np.newaxis], s2_doy_sin[..., np.newaxis]])
             
-
         # Sentinel-1 bands
         if self.s1:
             s1_bands = f[tile_name]['S1_bands'][idx, self.center - self.window_size : self.center + self.window_size + 1, self.center - self.window_size : self.center + self.window_size + 1, :].astype(np.float32)
@@ -391,14 +516,13 @@ class GEDIDataset(Dataset):
             s1_num_days = f[tile_name]['Sentinel_metadata']['S1_date'][idx, :]
             s1_doy_cos, s1_doy_sin = get_doy(s1_num_days, self.patch_size)
             s1_num_days = np.full((self.patch_size[0], self.patch_size[1]), s1_num_days).astype(np.float32)
-            s1_num_days = normalize_data(s1_num_days, self.norm_values['Sentinel_metadata']['S1_date'], 'min_max')
+            s1_num_days = normalize_data(s1_num_days, self.norm_values['Sentinel_metadata']['S1_date'], 'min_max' if self.norm_strat == 'pct' else self.norm_strat)
             
             data.extend([s1_bands, s1_num_days[..., np.newaxis], s1_doy_cos[..., np.newaxis], s1_doy_sin[..., np.newaxis]])
         
         # Latitude and longitude data
         lat_offset, lat_decimal = f[tile_name]['GEDI']['lat_offset'][idx], f[tile_name]['GEDI']['lat_decimal'][idx]
         lon_offset, lon_decimal = f[tile_name]['GEDI']['lon_offset'][idx], f[tile_name]['GEDI']['lon_decimal'][idx]
-        # lat, lon = lat_offset + lat_decimal, lon_offset + lon_decimal
         lat = np.sign(lat_decimal) * (np.abs(lat_decimal) + lat_offset)
         lon = np.sign(lon_decimal) * (np.abs(lon_decimal) + lon_offset)
         lat_cos, lat_sin, lon_cos, lon_sin = encode_coords(lat, lon, self.patch_size)
@@ -406,11 +530,12 @@ class GEDIDataset(Dataset):
         else: data.extend([lat_cos[..., np.newaxis], lat_sin[..., np.newaxis]])
         
         # GEDI dates
+        gedi_num_days = f[tile_name]['GEDI']['date'][idx]
+
         if self.gedi_dates :
-            gedi_num_days = f[tile_name]['GEDI']['date'][idx]
             gedi_doy_cos, gedi_doy_sin = get_doy(gedi_num_days, self.patch_size)
             gedi_num_days = np.full((self.patch_size[0], self.patch_size[1]), gedi_num_days).astype(np.float32)
-            gedi_num_days = normalize_data(gedi_num_days, self.norm_values['GEDI']['date'], 'min_max')
+            gedi_num_days = normalize_data(gedi_num_days, self.norm_values['GEDI']['date'], 'min_max' if self.norm_strat == 'pct' else self.norm_strat)
             data.extend([gedi_num_days[..., np.newaxis], gedi_doy_cos[..., np.newaxis], gedi_doy_sin[..., np.newaxis]])
 
         # ALOS bands
@@ -440,13 +565,40 @@ class GEDIDataset(Dataset):
         # LC data
         if self.lc:
             lc = f[tile_name]['LC'][idx, self.center - self.window_size : self.center + self.window_size + 1, self.center - self.window_size : self.center + self.window_size + 1, :]
-            lc_cos, lc_sin, lc_prob = encode_lc(lc)
+            
+            if self.cat2vec: # cat2vec embeddings, 5dim
+                lc, lc_prob = embed_lc(lc, self.embeddings)
+                data.extend([lc, lc_prob[..., np.newaxis]])
+            
+            elif self.onehot: # one-hot encoding, 14dim
+                
+                # Get the probability layer
+                lc_prob = np.where(lc[:, :, 1] == NODATAVALS['LC'], 0, lc[:, :, 1] / 100)
 
-            data.extend([lc_cos[..., np.newaxis], lc_sin[..., np.newaxis], lc_prob[..., np.newaxis]])
+                # Get the one-hot encoding of the biome layer
+                if self.dist: # with pct
+                    lc = biome_distribution(lc[:, :, 0])
+                else:
+                    lc = onehot_lc(lc[:, :, 0])
+
+                data.extend([lc, lc_prob[..., np.newaxis]])
+            
+            else: # sin/cosine encoding, 2dim
+                lc_cos, lc_sin, lc_prob = encode_lc(lc)
+                data.extend([lc_cos[..., np.newaxis], lc_sin[..., np.newaxis], lc_prob[..., np.newaxis]])
         
         # DEM data
         if self.dem:
             dem = f[tile_name]['DEM'][idx, self.center - self.window_size : self.center + self.window_size + 1, self.center - self.window_size : self.center + self.window_size + 1]
+
+            if self.topo :
+                # Get the slope and aspect
+                slope, aspect_cos, aspect_sin = get_topology(dem)
+                if self.slope :
+                    data.extend([slope[..., np.newaxis]])
+                if self.aspect:
+                    data.extend([aspect_cos[..., np.newaxis], aspect_sin[..., np.newaxis]])
+
             dem = normalize_data(dem, self.norm_values['DEM'], self.norm_strat, NODATAVALS['DEM'])
             data.extend([dem[..., np.newaxis]])
         
