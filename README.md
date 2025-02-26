@@ -3,7 +3,10 @@ Authors: Ghjulia Sialelli ([gsialelli@ethz.ch](mailto:gsialelli@ethz.ch)), Torbe
 
 [![CC BY-NC 4.0][cc-by-nc-shield]][cc-by-nc]
 
-This repository contains the code used to create the results presented in the eponymous paper. We curated a dataset from various remote-sensing data sources ([Sentinel-2 L2A](https://sentinels.copernicus.eu/web/sentinel/sentinel-data-access/sentinel-products/sentinel-2-data-products/collection-1-level-2a), ALOS-2 PALSAR-2 [yearly mocaics](https://www.eorc.jaxa.jp/ALOS/en/dataset/fnf_e.htm), JAXA [Digital Elevation Model](https://www.eorc.jaxa.jp/ALOS/en/dataset/aw3d30/aw3d30_e.htm), Copernicus [Land Cover](https://land.copernicus.eu/en/products/global-dynamic-land-cover/copernicus-global-land-service-land-cover-100m-collection-3-epoch-2019-globe), Lang et al. [Canopy Height Map](https://langnico.github.io/globalcanopyheight/)) and GEDI [L4A](https://daac.ornl.gov/GEDI/guides/GEDI_L4A_AGB_Density_V2_1.html) Above-Ground Biomass (AGB) data. We developed benchmark models for the task of estimating Above-Ground Biomass (AGB).
+This repository contains the code used to create the results presented in the eponymous [paper](https://arxiv.org/abs/2406.04928). We curated a dataset from various remote-sensing data sources ([Sentinel-2 L2A](https://sentinels.copernicus.eu/web/sentinel/sentinel-data-access/sentinel-products/sentinel-2-data-products/collection-1-level-2a), ALOS-2 PALSAR-2 [yearly mocaics](https://www.eorc.jaxa.jp/ALOS/en/dataset/fnf_e.htm), JAXA [Digital Elevation Model](https://www.eorc.jaxa.jp/ALOS/en/dataset/aw3d30/aw3d30_e.htm), Copernicus [Land Cover](https://land.copernicus.eu/en/products/global-dynamic-land-cover/copernicus-global-land-service-land-cover-100m-collection-3-epoch-2019-globe), Lang et al. [Canopy Height Map](https://langnico.github.io/globalcanopyheight/)) and GEDI [L4A](https://daac.ornl.gov/GEDI/guides/GEDI_L4A_AGB_Density_V2_1.html) Above-Ground Biomass (AGB) data. We developed benchmark models for the task of estimating Above-Ground Biomass (AGB).
+
+---
+:warning: We are currently migrating parts of the files on the Research Collection, so the `wget` links might be temporarily broken. We are actively working on this, and it should all be fixed soon! If you cannot wait, feel free to [email us](mailto:gsialelli@ethz.ch) directly.
 
 ## Installation
 To install the packages required to run this code, you can simply run the following commands, which will create a conda virtual environment called `agbd`. For more details, follow the instructions on [pytorch.org](https://pytorch.org/get-started/locally).
@@ -47,6 +50,11 @@ Please note that those dense predictions pre-date the "latitude / longitude bug"
 
 ## :arrow_up: Updates 
 See the [changelog](changelog.md) for more information about what was updated with each new commit (when relevant).
+
+## :soon: Coming
+- [ ] Fix `wget` links and `download.sh` file;
+- [ ] Technical document explaining how each data source was downloaded and processed (with code), for easy inference;
+- [X] Give access to *all* model weights (i.e. not just the best performing ones);
 
 ## :unlock: License
 
