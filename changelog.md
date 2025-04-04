@@ -13,3 +13,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 13.11.2024
 [This commit](https://github.com/ghjuliasialelli/AGBD/commit/dab81b106fbdb65ff85869c897d2a42802ef0cb6) fixed a bug in `Models/dataset.py` in the computation of the latitude and longitude. 
+
+### 04.04.2025
+[This commit](https://github.com/ghjuliasialelli/AGBD/commit/d2f21744312e8c7fb7ee1d3ca4a2b5d64f2ec7e3) updated the `wget` links to reflect the new Research Collection entry.
