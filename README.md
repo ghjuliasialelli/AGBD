@@ -40,7 +40,8 @@ We provide an example for the patches creation procedure, in the [Patches sectio
 ## Dense predictions
 Our dense predictions for the region covered by the dataset can be downloaded via the following command (it represents ~40GB) :
 ```
-wget "https://libdrive.ethz.ch/index.php/s/VPio6i5UlXTgir0/download?path=%2F&files=predictions&downloadStartSecret=gxairgqzc" -O predictions.tar
+wget "https://libdrive.ethz.ch/index.php/s/VPio6i5UlXTgir0/download?path=%2F&files=predictions" -O predictions.tar
+tar -xvf predictions.tar
 ```
 You will get a `.tif` file per Sentinel-2 tile in the regions of interest.
 Please note that those dense predictions pre-date the "latitude / longitude bug" (see the [changelog](changelog.md) for more information). As we are currently working on a better model, we do not generate the post-bug predictions, but will directly upload the best ones shortly.

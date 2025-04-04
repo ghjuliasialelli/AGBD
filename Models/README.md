@@ -28,17 +28,18 @@ Here is a breakdown of the files and their content:
 
 ## Inference
 
-1) To run inference on an example tile, you first need to download some example data, as follows:
+1) To run inference on an example tile, you first need to download some example input data for the model, as follows:
 ```
-wget "https://libdrive.ethz.ch/index.php/s/VPio6i5UlXTgir0/download?path=%2F&files=inference&downloadStartSecret=gxairgqzc" -O inference.tar
+wget "https://libdrive.ethz.ch/index.php/s/VPio6i5UlXTgir0/download?path=%2Finference" -O inference.tar
+tar -xvf inference.tar
 ```
-And run `tar -xvf inference.tar`.
 
 2) To download the pre-trained weights for each architecture (and each configuration), launch the following command:
 ```
-wget "https://libdrive.ethz.ch/index.php/s/VPio6i5UlXTgir0/download?path=%2F&files=pretrained_weights&downloadStartSecret=gxairgqzc" -O pretrained_weights.tar
+wget "https://libdrive.ethz.ch/index.php/s/Y9A9b156b8H0KYf/download?path=%2Fpretrained_weights" -O pretrained_weights.tar
+tar -xvf pretrained_weights.tar
 ```
-And run `tar -xvf pretrained_weights.tar`.
+*In this folder, you will find: sub-folders for each architecture, containing the model weights for each configuration we trained; and a `models.pkl` file, which is a mapping from architecture to configuration to the name of the corresponding `.ckpt` file.*
 
 3) You can now run inference as follows:
 ```

@@ -20,19 +20,19 @@ do
   for i in {0..19}
   do
     # Construct the URL with the current value of i
-    wget "https://libdrive.ethz.ch/index.php/s/VPio6i5UlXTgir0/download?path=%2F&files=data_subset-${year}-v4_${i}-20.h5&downloadStartSecret=gxairgqzc" -O Data/data_subset-${year}-v4_${i}-20.h5
-  done
-
-  # Download tabular data
-  for mode in "${modes[@]}"
-  do
-    wget "https://libdrive.ethz.ch/index.php/s/VPio6i5UlXTgir0/download?path=%2F&files=${mode}_features_${year}-v4.csv&downloadStartSecret=gxairgqzc" -O Data/${mode}_features_${year}-v4.csv
+    wget "https://libdrive.ethz.ch/index.php/s/VPio6i5UlXTgir0/download?path=%2Fdata_subset-${year}-v4_${i}-20.h5" -O Data/data_subset-${year}-v4_${i}-20.h5
   done
 
 done
 
+# Download tabular data
+for mode in "${modes[@]}"
+do
+  wget "https://libdrive.ethz.ch/index.php/s/Y9A9b156b8H0KYf/download?path=%2F${mode}_features-v6.csv" -O Data/${mode}_features-v6.csv
+done
+
 # Download the statistics
-wget "https://libdrive.ethz.ch/index.php/s/VPio6i5UlXTgir0/download?path=%2F&files=statistics_subset_2019-2020-v4.pkl&downloadStartSecret=gxairgqzc" -O Data/statistics_subset_2019-2020-v4.pkl
+wget "https://libdrive.ethz.ch/index.php/s/Y9A9b156b8H0KYf/download?path=%2Fstatistics_subset_2019-2020-v4_new.pkl" -O Data/statistics_subset_2019-2020-v4_new.pkl
 
 # Download the train/test/val split
-wget "https://libdrive.ethz.ch/index.php/s/VPio6i5UlXTgir0/download?path=%2F&files=biomes_splits_to_name.pkl&downloadStartSecret=gxairgqzc" -O Data/biomes_splits_to_name.pkl
+wget "https://libdrive.ethz.ch/index.php/s/VPio6i5UlXTgir0/download?path=%2Fbiomes_splits_to_name.pkl" -O Data/biomes_splits_to_name.pkl
