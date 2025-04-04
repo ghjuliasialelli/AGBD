@@ -1,10 +1,10 @@
-# :evergreen_tree: AGBD: A Global-scale Biomass Dataset :deciduous_tree:
-Authors: Ghjulia Sialelli ([gsialelli@ethz.ch](mailto:gsialelli@ethz.ch)), Torben Peters, Jan Wegner, Konrad Schindler
+![image info](header.png)
 
 [![CC BY-NC 4.0][cc-by-nc-shield]][cc-by-nc] [![arXiv](https://img.shields.io/badge/arXiv-2406.04928-b31b1b.svg?style=flat-square)](https://arxiv.org/abs/2406.04928)
 
-
 This repository contains the code used to create the results presented in the eponymous [paper](https://arxiv.org/abs/2406.04928). We curated a dataset from various remote-sensing data sources ([Sentinel-2 L2A](https://sentinels.copernicus.eu/web/sentinel/sentinel-data-access/sentinel-products/sentinel-2-data-products/collection-1-level-2a), ALOS-2 PALSAR-2 [yearly mocaics](https://www.eorc.jaxa.jp/ALOS/en/dataset/fnf_e.htm), JAXA [Digital Elevation Model](https://www.eorc.jaxa.jp/ALOS/en/dataset/aw3d30/aw3d30_e.htm), Copernicus [Land Cover](https://land.copernicus.eu/en/products/global-dynamic-land-cover/copernicus-global-land-service-land-cover-100m-collection-3-epoch-2019-globe), Lang et al. [Canopy Height Map](https://langnico.github.io/globalcanopyheight/)) and GEDI [L4A](https://daac.ornl.gov/GEDI/guides/GEDI_L4A_AGB_Density_V2_1.html) Above-Ground Biomass (AGB) data. We developed benchmark models for the task of estimating Above-Ground Biomass (AGB).
+
+:email: For all correspondence, contact [Ghjulia Sialelli](mailto:gsialelli@ethz.ch). 
 
 ---
 
@@ -86,5 +86,5 @@ If you use AGBD in a scientific publication, we encourage you to add the followi
 }
 ``
 
-**The conference proceedings citation will replace the arxiv preprint citation soon.**
+*The conference proceedings citation will replace the arxiv preprint citation soon.*
 
