@@ -75,7 +75,7 @@ This work is licensed under a
 
 If you use AGBD in a scientific publication, we encourage you to add the following reference:
 
-``
+```
 @article{AGBD,
   doi = {10.48550/ARXIV.2406.04928},
   url = {https://arxiv.org/abs/2406.04928},
@@ -84,7 +84,7 @@ If you use AGBD in a scientific publication, we encourage you to add the followi
   year = {2024},
   copyright = {Creative Commons Attribution Non Commercial Share Alike 4.0 International}
 }
-``
+```
 
 *The conference proceedings citation will replace the arxiv preprint citation soon.*
 
