@@ -76,15 +76,17 @@ This work is licensed under a
 If you use AGBD in a scientific publication, we encourage you to add the following reference:
 
 ```
-@article{AGBD,
-  doi = {10.48550/ARXIV.2406.04928},
-  url = {https://arxiv.org/abs/2406.04928},
+@article{Sialelli2025,
   title = {AGBD: A Global-scale Biomass Dataset},
-  publisher = {arXiv},
-  year = {2024},
-  copyright = {Creative Commons Attribution Non Commercial Share Alike 4.0 International}
+  volume = {X-G-2025},
+  ISSN = {2194-9050},
+  url = {http://dx.doi.org/10.5194/isprs-annals-X-G-2025-829-2025},
+  DOI = {10.5194/isprs-annals-x-g-2025-829-2025},
+  journal = {ISPRS Annals of the Photogrammetry,  Remote Sensing and Spatial Information Sciences},
+  publisher = {Copernicus GmbH},
+  author = {Sialelli,  Ghjulia and Peters,  Torben and Wegner,  Jan D. and Schindler,  Konrad},
+  year = {2025},
+  month = jul,
+  pages = {829–838}
 }
 ```
-
-*The conference proceedings citation will replace the arxiv preprint citation soon.*
-
