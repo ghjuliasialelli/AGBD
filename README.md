@@ -34,6 +34,13 @@ from datasets import load_dataset
 dataset = load_dataset('prs-eth/AGBD', trust_remote_code=True, streaming=True)["train"]  # Options: "train", "val", "test"
 ```
 
+### :new: AGBD-Lite
+
+Need a smaller, cheaper version for quick experiments? **[AGBD-Lite](https://huggingface.co/datasets/prs-eth/AGBD-Lite)** is a representative **~5% subset** of AGBD (≈595k samples vs. ~16M), built to serve as a fast **screening tool** before committing to a full-scale run. It subsamples ≈5% of GEDI footprints *per Sentinel-2 tile*, chosen to minimise the Wasserstein distance between the biome distributions of the subset and the full dataset. As a result it **preserves model rankings** and comes **within ~3.5%** of full-data RMSE, at a fraction of the storage and compute.
+
+👉 **[huggingface.co/datasets/prs-eth/AGBD-Lite](https://huggingface.co/datasets/prs-eth/AGBD-Lite)**
+
+
 ## :arrows_counterclockwise: Data downloading and Models training
 Should you wish to reproduce our results, we provide in the [Models section](https://github.com/ghjuliasialelli/AGBD/tree/main/Models) of this repository the code we used to train our benchmark models. Should you want to reproduce our experiments with the data format we used, you can download the data and use the provided data loader. You can find further instruction on how to do it in the dedicated folder. Note that the data is ~300GB.
 
